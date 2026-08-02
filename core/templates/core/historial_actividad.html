@@ -1,0 +1,41 @@
+{% extends "core/base.html" %}
+{% block content %}
+<h2 class="mb-3">Historial del grupo</h2>
+
+<div class="card shadow-sm">
+  <button
+    class="card-header bg-white border-0 text-start d-flex justify-content-between align-items-center"
+    type="button"
+    data-bs-toggle="collapse"
+    data-bs-target="#historialCollapse"
+    aria-expanded="true"
+    aria-controls="historialCollapse"
+  >
+    <span class="fw-bold">Ver actividad ({{ actividades|length }})</span>
+    <span>&#9662;</span>
+  </button>
+
+  <div class="collapse show" id="historialCollapse">
+    <div class="card-body p-0" style="max-height: 420px; overflow-y: auto;">
+      {% if actividades %}
+      <ul class="list-group list-group-flush">
+        {% for act in actividades %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <strong>{{ act.accion }}</strong>
+            <small class="text-muted">{{ act.fecha|date:"d/m/Y H:i" }}</small>
+          </div>
+          <div class="small text-muted">{{ act.usuario }}</div>
+          {% if act.descripcion %}
+          <div>{{ act.descripcion }}</div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted p-3 mb-0">No hay actividad registrada todavía.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

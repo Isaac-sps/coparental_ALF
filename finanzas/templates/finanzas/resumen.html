@@ -1,0 +1,385 @@
+{% extends "core/base.html" %} {% load finanzas_extras %} {% block content %}
+
+<form method="get" class="mb-4">
+  <div class="row g-2">
+    <div class="col-md-2">
+      <label class="form-label">Mes</label>
+      <input type="number" name="mes" min="1" max="12" class="form-control" />
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label">Año</label>
+      <input
+        type="number"
+        name="ano"
+        min="2000"
+        max="2100"
+        class="form-control"
+      />
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">Desde</label>
+      <input type="date" name="desde" class="form-control" />
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">Hasta</label>
+      <input type="date" name="hasta" class="form-control" />
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label">Pagado por</label>
+      <select name="pagado_por" class="form-control">
+        <option value="">Todos</option>
+        <option value="padre">Padre</option>
+        <option value="madre">Madre</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn btn-dark mt-3">Filtrar</button>
+</form>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Resumen financiero</h2>
+  <div>
+    <a href="{% url 'finanzas:nuevo_pago' %}" class="btn btn-primary me-2"
+      >Nuevo pago</a
+    >
+    <a href="{% url 'finanzas:nuevo_gasto' %}" class="btn btn-secondary"
+      >Nuevo gasto</a
+    >
+  </div>
+</div>
+
+<!-- BALANCE AUTOMÁTICO -->
+{% if balance > 0 %}
+<div class="alert alert-success">
+  La madre te debe <strong>{{ balance }}€</strong>.
+</div>
+{% elif balance < 0 %}
+<div class="alert alert-warning">
+  Tú debes <strong>{{ balance|abs }}€</strong> a la madre.
+</div>
+{% else %}
+<div class="alert alert-info">Ambos están equilibrados (0€).</div>
+{% endif %}
+
+<h3>Pagos de manutención</h3>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Monto</th>
+      <th>Fecha</th>
+      <th>Estado</th>
+      <th>Comprobante</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for pago in pagos %}
+    <tr>
+      <td>{{ pago.monto }}€</td>
+      <td>{{ pago.fecha }}</td>
+      <td>{{ pago.get_estado_display }}</td>
+
+      <td>
+        {% if pago.comprobante_pdf %}
+        <a href="{{ pago.comprobante_pdf.url }}" target="_blank">Ver PDF</a>
+        {% else %} Sin comprobante {% endif %}
+      </td>
+
+      <td>
+        {% if pago.estado != "pagado" %}
+        <a
+          href="{% url 'finanzas:marcar_pagado' pago.pk %}"
+          class="btn btn-sm btn-success me-1"
+          >Marcar pagado</a
+        >
+        {% endif %}
+        <a
+          href="{% url 'finanzas:editar_pago' pago.pk %}"
+          class="btn btn-sm btn-warning me-1"
+          >Editar</a
+        >
+        <a
+          href="{% url 'finanzas:eliminar_pago' pago.pk %}"
+          class="btn btn-sm btn-danger"
+          >Eliminar</a
+        >
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="5">No hay pagos registrados.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>Gastos compartidos</h3>
+
+<!-- ⭐ GRÁFICO DE GASTOS -->
+<h3 class="mt-4">Gráfico de gastos</h3>
+<div style="position: relative; height: 320px">
+  <canvas id="graficoGastos"></canvas>
+</div>
+
+{{ grafico_gastos|json_script:"grafico-gastos-data" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const graficoGastosData = JSON.parse(document.getElementById('grafico-gastos-data').textContent);
+  const labels = graficoGastosData.labels;
+  const data = graficoGastosData.data;
+
+  const canvas = document.getElementById('graficoGastos');
+  const ctx = canvas ? canvas.getContext('2d') : null;
+
+  if (ctx && labels.length) {
+      new Chart(ctx, {
+          type: 'bar',
+          data: {
+              labels,
+              datasets: [{
+                  label: 'Gastos (€)',
+                  data,
+                  backgroundColor: "rgba(54, 162, 235, 0.6)",
+                  borderColor: "rgba(54, 162, 235, 1)"
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                  y: { beginAtZero: true }
+              }
+          }
+      });
+  }
+</script>
+
+<!-- ⭐ GRÁFICO COMPARATIVO PADRE VS MADRE -->
+<h3 class="mt-5">Comparación Padre vs Madre</h3>
+
+<div style="position: relative; height: 260px;">
+  <canvas id="graficoComparativo"></canvas>
+</div>
+
+{{ grafico_comparativo|json_script:"grafico-comparativo-data" }}
+
+<script>
+  const comparativoData = JSON.parse(
+    document.getElementById("grafico-comparativo-data").textContent
+  );
+
+  const ctxComparativo = document.getElementById("graficoComparativo")?.getContext("2d");
+
+  if (ctxComparativo) {
+    new Chart(ctxComparativo, {
+      type: "bar",
+      data: {
+        labels: comparativoData.labels,
+        datasets: [
+          {
+            label: "Total pagado (€)",
+            data: comparativoData.data,
+            backgroundColor: [
+              "rgba(54, 162, 235, 0.6)",   // Padre
+              "rgba(255, 159, 64, 0.6)",   // Madre
+            ],
+            borderColor: [
+              "rgba(54, 162, 235, 1)",
+              "rgba(255, 159, 64, 1)",
+            ],
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true },
+        },
+      },
+    });
+  }
+</script>
+
+<!-- ⭐ GRÁFICO MENSUAL -->
+<h3 class="mt-5">Gastos por mes</h3>
+
+<div style="position: relative; height: 260px;">
+  <canvas id="graficoMensual"></canvas>
+</div>
+
+{{ grafico_mensual|json_script:"grafico-mensual-data" }}
+
+<script>
+  const mensualData = JSON.parse(
+    document.getElementById("grafico-mensual-data").textContent
+  );
+
+  const ctxMensual = document.getElementById("graficoMensual")?.getContext("2d");
+
+  if (ctxMensual) {
+    new Chart(ctxMensual, {
+      type: "bar",
+      data: {
+        labels: mensualData.labels,
+        datasets: [
+          {
+            label: "Gastos por mes (€)",
+            data: mensualData.data,
+            backgroundColor: "rgba(75, 192, 192, 0.6)",
+            borderColor: "rgba(75, 192, 192, 1)",
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true },
+        },
+      },
+    });
+  }
+</script>
+
+<!-- ⭐ GRÁFICO ANUAL -->
+<h3 class="mt-5">Gastos por año</h3>
+
+<div style="position: relative; height: 260px;">
+  <canvas id="graficoAnual"></canvas>
+</div>
+
+{{ grafico_anual|json_script:"grafico-anual-data" }}
+
+<script>
+  const anualData = JSON.parse(
+    document.getElementById("grafico-anual-data").textContent
+  );
+
+  const ctxAnual = document.getElementById("graficoAnual")?.getContext("2d");
+
+  if (ctxAnual) {
+    new Chart(ctxAnual, {
+      type: "bar",
+      data: {
+        labels: anualData.labels,
+        datasets: [
+          {
+            label: "Gastos por año (€)",
+            data: anualData.data,
+            backgroundColor: "rgba(153, 102, 255, 0.6)",
+            borderColor: "rgba(153, 102, 255, 1)",
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true },
+        },
+      },
+    });
+  }
+</script>
+
+<!-- BOTONES RÁPIDOS -->
+<div class="mb-3 d-flex gap-2">
+  <a
+    href="?mes={{ hoy.month }}&ano={{ hoy.year }}"
+    class="btn btn-outline-primary btn-sm"
+    >Este mes</a
+  >
+  <a href="?pagado_por=padre" class="btn btn-outline-success btn-sm">Padre</a>
+  <a href="?pagado_por=madre" class="btn btn-outline-warning btn-sm">Madre</a>
+  <a href="{% url 'finanzas:resumen' %}" class="btn btn-outline-dark btn-sm"
+    >Quitar filtros</a
+  >
+  <a href="{% url 'finanzas:exportar_pdf' %}" class="btn btn-outline-danger btn-sm">
+    Exportar PDF
+  </a>
+
+</div>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Concepto</th>
+      <th>Monto</th>
+      <th>Fecha</th>
+      <th>Pagado por</th>
+      <th>Deuda 50/50</th>
+      <th>Comprobante</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for gasto in gastos %}
+    <tr>
+      <td>{{ gasto.concepto }}</td>
+      <td>{{ gasto.monto }}€</td>
+      <td>{{ gasto.fecha }}</td>
+
+      <td>
+        {% if gasto.pagado_por == request.user %}
+        <span class="badge bg-primary">Padre</span>
+        {% else %}
+        <span class="badge bg-secondary">Madre</span>
+        {% endif %}
+      </td>
+
+      <td>{{ gasto.deuda_50_50 }}€</td>
+
+      <td>
+        {% if gasto.comprobante %} {% with url=gasto.comprobante.url|lower %}
+        {% if url|slice:"-4" == ".pdf" %}
+        <a
+          href="{{ gasto.comprobante.url }}"
+          target="_blank"
+          class="btn btn-sm btn-info"
+          >Ver PDF</a
+        >
+        {% else %}
+        <a href="{{ gasto.comprobante.url }}" target="_blank">
+          <img
+            src="{{ gasto.comprobante.url }}"
+            alt="Comprobante"
+            style="max-height: 80px"
+          />
+        </a>
+        {% endif %} {% endwith %} {% else %} Sin comprobante {% endif %}
+      </td>
+
+      <td>
+        <a
+          href="{% url 'finanzas:editar_gasto' gasto.pk %}"
+          class="btn btn-sm btn-warning me-1"
+          >Editar</a
+        >
+        <a
+          href="{% url 'finanzas:eliminar_gasto' gasto.pk %}"
+          class="btn btn-sm btn-danger"
+          >Eliminar</a
+        >
+      </td>
+    </tr>
+
+    {% empty %}
+    <tr>
+      <td colspan="7">No hay gastos registrados.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

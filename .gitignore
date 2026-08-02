@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+
+# Virtual environment
+envdjango4.2/
+.venv/
+env/
+
+# Environment files
+.env
+
+# Archivos subidos por usuarios (comprobantes, fotos, documentos de Canal ALF).
+# Nunca deben versionarse: pueden contener información personal o financiera real.
+media/
+
+# Estáticos compilados por collectstatic (se regeneran, no son código fuente)
+staticfiles/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

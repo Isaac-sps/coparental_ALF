@@ -1,0 +1,29 @@
+{% extends "core/base.html" %} {% block content %}
+<h2>Panel del Grupo Coparental</h2>
+
+<h3>Miembros del grupo</h3>
+<ul>
+  {% for miembro in miembros %}
+  <li>{{ miembro.user.get_full_name }} ({{ miembro.user.username }})</li>
+  {% endfor %}
+</ul>
+
+<h3>Invitaciones enviadas</h3>
+<ul>
+  {% for inv in invitaciones %}
+  <li>
+    {{ inv.email }} — {% if inv.aceptada %}
+    <strong>Aceptada</strong>
+    {% else %} Pendiente {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+
+<h3>Historial del grupo</h3>
+<ul>
+  {% for act in historial %}
+  <li>{{ act.fecha }} — {{ act.usuario }} — {{ act.accion }}</li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "core/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="card shadow-sm mx-auto profile-card mb-4">
+  <div class="card-body p-4 p-md-5">
+    <h2 class="mb-4">Mi perfil</h2>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <div class="d-flex align-items-center gap-4 mb-4 flex-wrap">
+        <img
+          id="avatar-preview"
+          src="{% if padre.foto %}{{ padre.foto.url }}{% else %}data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23adb5bd'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8'/%3E%3C/svg%3E{% endif %}"
+          alt="Foto de perfil"
+          class="avatar-img {% if not padre.foto %}avatar-placeholder{% endif %}"
+        >
+        <div class="flex-grow-1" style="min-width: 200px;">
+          {{ form.foto|as_crispy_field }}
+        </div>
+      </div>
+
+      <h6 class="text-uppercase text-muted small fw-bold mb-3">Datos personales</h6>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">{{ user_form.first_name|as_crispy_field }}</div>
+        <div class="col-md-6">{{ user_form.last_name|as_crispy_field }}</div>
+        <div class="col-md-6">{{ user_form.email|as_crispy_field }}</div>
+        <div class="col-md-6">{{ form.fecha_nacimiento|as_crispy_field }}</div>
+      </div>
+
+      <h6 class="text-uppercase text-muted small fw-bold mb-3">Contacto</h6>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">{{ form.telefono|as_crispy_field }}</div>
+        <div class="col-md-6">{{ form.domicilio|as_crispy_field }}</div>
+      </div>
+
+      <button class="btn btn-primary btn-lg" type="submit">Guardar cambios</button>
+    </form>
+  </div>
+</div>
+
+{% if otros_miembros %}
+<h4 class="mb-3">Otros miembros del grupo</h4>
+<div class="row g-4 profile-card mx-auto">
+  {% for miembro in otros_miembros %}
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body p-4 d-flex align-items-center gap-3">
+        <img
+          src="{% if miembro.foto %}{{ miembro.foto.url }}{% else %}data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23adb5bd'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8'/%3E%3C/svg%3E{% endif %}"
+          alt="Foto de {{ miembro.user.get_full_name|default:miembro.user.username }}"
+          class="avatar-img avatar-img-sm {% if not miembro.foto %}avatar-placeholder{% endif %}"
+        >
+        <div>
+          <div class="fw-bold fs-5">{{ miembro.user.get_full_name|default:miembro.user.username }}</div>
+          {% if miembro.telefono %}<div class="text-muted small">📞 {{ miembro.telefono }}</div>{% endif %}
+          {% if miembro.domicilio %}<div class="text-muted small">🏠 {{ miembro.domicilio }}</div>{% endif %}
+          {% if miembro.fecha_nacimiento %}<div class="text-muted small">🎂 {{ miembro.fecha_nacimiento|date:"d/m/Y" }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+  (function () {
+    var input = document.querySelector("#id_foto");
+    var preview = document.querySelector("#avatar-preview");
+    if (!input || !preview) return;
+    input.addEventListener("change", function () {
+      if (this.files && this.files[0]) {
+        preview.src = URL.createObjectURL(this.files[0]);
+        preview.classList.remove("avatar-placeholder");
+      }
+    });
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "core/base.html" %} {% block content %}
+<h2>Miembros externos del grupo</h2>
+
+<ul class="list-group">
+  {% for ext in externos %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <!-- Información del profesional -->
+    <div>
+      <strong>{{ ext.user.get_full_name }}</strong>
+      — {{ ext.get_rol_display }} {% if ext.autorizado %}
+      <span class="badge bg-success ms-2">Autorizado</span>
+      {% else %}
+      <span class="badge bg-warning ms-2">Pendiente</span>
+      {% endif %}
+    </div>
+
+    <!-- Botones de acción -->
+    <div>
+      {% if not ext.autorizado %}
+      <!-- Botón del padre -->
+      {% if not ext.autorizado_por_padre %}
+      <a
+        href="{% url 'core:aprobar_externo_padre' ext.id %}"
+        class="btn btn-success btn-sm ms-2"
+      >
+        Aprobar como padre
+      </a>
+      {% endif %}
+
+      <!-- Botón de la madre -->
+      {% if not ext.autorizado_por_madre %}
+      <a
+        href="{% url 'core:aprobar_externo_madre' ext.id %}"
+        class="btn btn-primary btn-sm ms-2"
+      >
+        Aprobar como madre
+      </a>
+      {% endif %} {% endif %} {% if ext.autorizado %}
+      <!-- Botón para revocar acceso -->
+      <a
+        href="{% url 'core:revocar_externo' ext.id %}"
+        class="btn btn-danger btn-sm ms-2"
+      >
+        Revocar acceso
+      </a>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

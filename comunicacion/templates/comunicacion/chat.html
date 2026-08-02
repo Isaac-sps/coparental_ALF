@@ -1,0 +1,42 @@
+{% extends "core/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h2>Chat interno</h2>
+        <div class="mb-3 border rounded p-3 bg-white" style="max-height:400px; overflow-y:auto;">
+            {% for mensaje in mensajes %}
+                <div class="mb-2">
+                    <strong>{{ mensaje.autor }}</strong>
+                    <small class="text-muted">{{ mensaje.fecha_creacion }}</small>
+                    <p class="mb-0">{{ mensaje.contenido }}</p>
+                </div>
+            {% empty %}
+                <p>No hay mensajes aún.</p>
+            {% endfor %}
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <button class="btn btn-primary" type="submit">Enviar</button>
+        </form>
+    </div>
+
+    <div class="col-md-4">
+        <h2>Archivos compartidos</h2>
+        <a href="{% url 'comunicacion:subir_archivo' %}" class="btn btn-secondary mb-3">Subir archivo</a>
+        <ul class="list-group">
+            {% for archivo in archivos_compartidos %}
+                <li class="list-group-item">
+                    <strong>{{ archivo.descripcion }}</strong><br>
+                    <a href="{{ archivo.archivo.url }}" target="_blank">{{ archivo.archivo.name }}</a><br>
+                    <small class="text-muted">{{ archivo.autor }} - {{ archivo.fecha_creacion }}</small>
+                </li>
+            {% empty %}
+                <li class="list-group-item">No hay archivos compartidos.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

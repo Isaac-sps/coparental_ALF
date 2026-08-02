@@ -1,0 +1,11 @@
+{% extends "core/base.html" %} {% block content %}
+<h2>¿Eliminar este gasto?</h2>
+
+<p>Concepto: {{ object.concepto }}</p>
+<p>Monto: {{ object.monto }}€</p>
+
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn-danger">Eliminar</button>
+</form>
+{% endblock %}

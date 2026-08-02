@@ -1,0 +1,73 @@
+/* Estilos propios de CoparentaL ALF */
+
+/* ============================================================
+   Color de marca (tono azul de la barra, botones, badges, etc.)
+   Para cambiar el tono, edita SOLO estas dos variables.
+   Deben representar el mismo color: hex y su equivalente "r, g, b".
+   ============================================================ */
+:root {
+  --app-primary: #2e4756;
+  --app-primary-rgb: 46, 71, 86;
+}
+
+/* Bootstrap usa estas variables en bg-primary, text-primary, border-primary,
+   badges "bg-primary", etc. Al reasignarlas, todo eso sigue el nuevo tono. */
+:root {
+  --bs-primary: var(--app-primary);
+  --bs-primary-rgb: var(--app-primary-rgb);
+}
+
+/* .btn-primary calcula sus colores (incluidos hover/active) al compilar Bootstrap,
+   así que no reacciona a --bs-primary por sí solo: hay que redefinirlo aquí. */
+.btn-primary {
+  --bs-btn-bg: var(--app-primary);
+  --bs-btn-border-color: var(--app-primary);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--app-primary) 85%, black);
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--app-primary) 80%, black);
+  --bs-btn-active-bg: color-mix(in srgb, var(--app-primary) 75%, black);
+  --bs-btn-active-border-color: color-mix(in srgb, var(--app-primary) 70%, black);
+  --bs-btn-disabled-bg: var(--app-primary);
+  --bs-btn-disabled-border-color: var(--app-primary);
+  --bs-btn-focus-shadow-rgb: var(--app-primary-rgb);
+}
+
+.brand-logo {
+  height: clamp(2.25rem, 1.2rem + 4.5vw, 6.5rem);
+  width: auto;
+  object-fit: contain;
+}
+
+.navbar-brand span {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.profile-card {
+  max-width: 1000px;
+}
+
+.avatar-img {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--app-primary);
+  background-color: #f1f3f5;
+  flex-shrink: 0;
+}
+
+.avatar-img-sm {
+  width: 72px;
+  height: 72px;
+  border-width: 3px;
+}
+
+.avatar-placeholder {
+  object-fit: none;
+  padding: 36px;
+}
+
+.avatar-img-sm.avatar-placeholder {
+  padding: 16px;
+}

@@ -1,0 +1,22 @@
+{% extends "core/base.html" %}
+{% block content %}
+<div class="card shadow-sm mx-auto" style="max-width: 560px;">
+  <div class="card-body p-4">
+    <h2 class="mb-3">Eliminar evento</h2>
+    <p>¿Seguro que quieres eliminar este evento? Esta acción no se puede deshacer.</p>
+
+    <ul class="list-unstyled mb-4">
+      <li><strong>Tipo:</strong> {{ evento.get_tipo_display }}</li>
+      <li><strong>Inicio:</strong> {{ evento.fecha_inicio }}</li>
+      <li><strong>Fin:</strong> {{ evento.fecha_fin }}</li>
+      <li><strong>Punto de encuentro:</strong> {{ evento.get_punto_encuentro_display }}</li>
+    </ul>
+
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Eliminar</button>
+      <a href="{% url 'calendario:lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

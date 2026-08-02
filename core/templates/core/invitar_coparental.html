@@ -1,0 +1,14 @@
+{% extends "core/base.html" %} {% block content %}
+<h2>Invitar a la otra persona</h2>
+
+<form method="post" class="mt-3">
+  {% csrf_token %}
+  <div class="mb-3">
+    <label for="email" class="form-label"
+      >Correo electrónico del coparental</label
+    >
+    <input type="email" name="email" id="email" class="form-control" required />
+  </div>
+  <button type="submit" class="btn btn-primary">Enviar invitación</button>
+</form>
+{% endblock %}
