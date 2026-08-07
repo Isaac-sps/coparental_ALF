@@ -1,8 +1,9 @@
 """Vistas de la app core: dashboard y perfil."""
 
-from datetime import date, timezone
+from datetime import date
+from django.utils import timezone
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, FileResponse
 from django.shortcuts import render, redirect
 
 # ⭐ AGREGADO: Necesario para aceptar invitaciones y obtener objetos
@@ -17,7 +18,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from calendario.models import Evento
 from finanzas.models import Pago, Gasto
-from .forms import PadreForm, UsuarioForm
+from .forms import PadreForm, UsuarioForm, MensajeCanalForm, DocumentoCanalForm
 
 # ⭐ AGREGADO: Nuevos modelos que creaste (GrupoCoparental + InvitacionCoparental)
 from .models import (
@@ -26,26 +27,43 @@ from .models import (
     RegistroActividad,
     GrupoCoparental,
     InvitacionCoparental,
+    InvitacionExterno,
+    CanalRol,
+    DocumentoCanal,
+    MensajeCanal,
+    ROLES_CANAL,
+    usuario_tiene_acceso_canal,
 )
 from .models import registrar_actividad
-from .tasks import enviar_invitacion_email
+from .tasks import enviar_invitacion_email, enviar_invitacion_externo_email
+from .decorators import solo_padres
 
 
 @login_required
 def dashboard(request):
-    """Dashboard principal: calendario del mes, próximos eventos y alertas de pago."""
+    """Dashboard principal: calendario del mes, próximos eventos y alertas de pago
+    del grupo del usuario (nunca de otro grupo)."""
+    padre = Padre.objects.filter(user=request.user).first()
+    if padre is None:
+        if MiembroExterno.objects.filter(user=request.user).exists():
+            return redirect("core:panel_profesional")
+        return redirect("core:perfil")
+
+    grupo = padre.grupo
     hoy = date.today()
 
     # Próximos eventos (visitas y vacaciones con fecha_inicio >= hoy, en orden)
-    proximas_visitas = Evento.objects.filter(fecha_inicio__gte=hoy).order_by(
-        "fecha_inicio"
-    )
+    proximas_visitas = Evento.objects.filter(
+        grupo=grupo, fecha_inicio__gte=hoy
+    ).order_by("fecha_inicio")
 
     # Pagos pendientes (manutención)
-    pagos_pendientes = Pago.objects.filter(estado="pendiente").order_by("fecha")
+    pagos_pendientes = Pago.objects.filter(
+        grupo=grupo, estado="pendiente"
+    ).order_by("fecha")
 
     # Gastos recientes
-    gastos_recientes = Gasto.objects.order_by("-fecha_creacion")[:5]
+    gastos_recientes = Gasto.objects.filter(grupo=grupo).order_by("-fecha_creacion")[:5]
 
     context = {
         "hoy": hoy,
@@ -59,6 +77,10 @@ def dashboard(request):
 @login_required
 def perfil(request):
     """Vista para editar el perfil del padre."""
+    if not Padre.objects.filter(user=request.user).exists():
+        if MiembroExterno.objects.filter(user=request.user).exists():
+            return redirect("core:panel_profesional")
+
     padre, _ = Padre.objects.get_or_create(user=request.user)
 
     # ⭐ AGREGADO: Crear automáticamente un grupo coparental si no existe
@@ -98,6 +120,10 @@ def perfil(request):
 @login_required
 def historial_actividad(request):
     """Muestra el historial de actividad del grupo coparental (ambos padres)."""
+    if not Padre.objects.filter(user=request.user).exists():
+        if MiembroExterno.objects.filter(user=request.user).exists():
+            return redirect("core:panel_profesional")
+
     padre, _ = Padre.objects.get_or_create(user=request.user)
 
     if padre.grupo:
@@ -117,7 +143,7 @@ def historial_actividad(request):
 
 
 # ⭐⭐⭐ NUEVO BLOQUE COMPLETO — INVITAR COPARENTAL ⭐⭐⭐
-@login_required
+@solo_padres
 def invitar_coparental(request):
     """Permite enviar una invitación al otro progenitor."""
     padre = Padre.objects.get(user=request.user)
@@ -149,10 +175,23 @@ def invitar_coparental(request):
 
 
 # ⭐⭐⭐ NUEVO BLOQUE COMPLETO — ACEPTAR INVITACIÓN ⭐⭐⭐
-@login_required
 def aceptar_invitacion(request, token):
-    """Permite que el otro progenitor acepte la invitación y se una al grupo."""
-    invitacion = get_object_or_404(InvitacionCoparental, token=token, aceptada=False)
+    """Permite que el otro progenitor acepte la invitación y se una al grupo.
+
+    No usa @login_required: si quien hace clic en el enlace del correo aún no
+    tiene cuenta, lo mandamos a iniciar sesión / crear cuenta con el email de
+    la invitación precargado y `next` apuntando de vuelta aquí, para que al
+    terminar quede unido al grupo automáticamente sin tener que repetir el paso.
+    """
+    invitacion = get_object_or_404(InvitacionCoparental, token=token)
+
+    if invitacion.aceptada:
+        messages.info(request, "Esta invitación ya fue utilizada.")
+        return redirect("core:dashboard" if request.user.is_authenticated else "account_login")
+
+    if not request.user.is_authenticated:
+        login_url = reverse("account_login")
+        return redirect(f"{login_url}?next={request.path}&email={invitacion.email}")
 
     padre, _ = Padre.objects.get_or_create(user=request.user)
     padre.grupo = invitacion.grupo
@@ -161,6 +200,11 @@ def aceptar_invitacion(request, token):
     invitacion.aceptada = True
     invitacion.save()
 
+    if request.user.email and request.user.email.lower() != invitacion.email.lower():
+        messages.info(
+            request, f"Nota: esta invitación fue enviada originalmente a {invitacion.email}."
+        )
+
     registrar_actividad(request.user, "Invitación aceptada")
 
     messages.success(request, "Te has unido al grupo coparental.")
@@ -168,7 +212,7 @@ def aceptar_invitacion(request, token):
 
 
 # Creacion de vista del Panel del Grupo
-@login_required
+@solo_padres
 def panel_grupo(request):
     """Panel de administración del grupo coparental."""
     padre = Padre.objects.get(user=request.user)
@@ -196,73 +240,262 @@ def panel_grupo(request):
 
 
 # Creación de un Panel Externo para la visualización a los profesionales requeridos por sección módular
-@login_required
+@solo_padres
 def panel_externos(request):
     padre = Padre.objects.get(user=request.user)
 
     if padre.grupo is None:
         return HttpResponseForbidden()
 
-    externos = padre.grupo.externos.all()
+    externos = list(padre.grupo.externos.all())
+    invitaciones_externos = padre.grupo.invitaciones_externos.filter(aceptada=False)
 
-    return render(request, "core/panel_externos.html", {"externos": externos})
+    for externo in externos:
+        if externo.autorizado():
+            canal, _ = CanalRol.objects.get_or_create(
+                grupo=padre.grupo, rol=externo.rol
+            )
+            externo.canal_id = canal.id
+
+    return render(
+        request,
+        "core/panel_externos.html",
+        {"externos": externos, "invitaciones_externos": invitaciones_externos},
+    )
 
 
-# Proceso de solicitud para un acceso de caracter externo
-@login_required
-def solicitar_acceso_externo(request):
-    """Vista para que un profesional externo solicite acceso al grupo coparental."""
-    padre = Padre.objects.filter(user=request.user).first()
+# Invitar a un profesional externo (médico, abogado, etc.) por correo
+@solo_padres
+def invitar_externo(request):
+    """Permite a un padre/madre invitar a un profesional a un rol del grupo."""
+    padre = Padre.objects.get(user=request.user)
 
-    # Si el usuario ya es padre/madre, no puede solicitar acceso externo
-    if padre:
-        messages.error(
-            request, "Los administradores del grupo no pueden solicitar acceso externo."
-        )
-        return redirect("core:dashboard")
+    if padre.grupo is None:
+        messages.error(request, "No tienes un grupo coparental asignado.")
+        return redirect("core:perfil")
 
     if request.method == "POST":
+        email = request.POST.get("email")
         rol = request.POST.get("rol")
-        grupo_id = request.POST.get("grupo_id")
+        roles_validos = dict(MiembroExterno.ROLES)
 
-        grupo = GrupoCoparental.objects.get(id=grupo_id)
-
-        # Crear solicitud
-        externo = MiembroExterno.objects.create(
-            user=request.user,
-            grupo=grupo,
-            rol=rol,
-            autorizado_por_padre=False,
-            autorizado_por_madre=False,
-        )
-
-        # Registrar actividad
-        registrar_actividad(
-            request.user,
-            "Solicitud de acceso externo",
-            f"Solicitud enviada para acceder al grupo {grupo.nombre} como {rol}.",
-        )
-
-        # Notificar a los administradores
-        for admin in grupo.miembros.all():
-            registrar_actividad(
-                admin.user,
-                "Nueva solicitud externa",
-                f"{request.user.get_full_name()} solicita acceso como {rol}.",
+        if not email or rol not in roles_validos:
+            messages.error(request, "Debes indicar un correo y un rol válido.")
+        else:
+            invitacion = InvitacionExterno.objects.create(
+                grupo=padre.grupo,
+                email=email,
+                rol=rol,
+                invitado_por=request.user,
+            )
+            enviar_invitacion_externo_email.delay(
+                email, str(invitacion.token), roles_validos[rol]
             )
 
-        messages.success(
-            request, "Tu solicitud ha sido enviada y está pendiente de aprobación."
-        )
-        return redirect("core:dashboard")
+            registrar_actividad(
+                request.user,
+                "Invitación a profesional enviada",
+                f"Invitación enviada a {email} como {roles_validos[rol]}.",
+            )
 
-    grupos = GrupoCoparental.objects.all()  # En producción se filtra según invitación
+            messages.success(request, "Invitación creada y enviada por email.")
+            return redirect("core:panel_externos")
 
-    return render(request, "core/solicitar_acceso_externo.html", {"grupos": grupos})
+    return render(
+        request, "core/invitar_externo.html", {"roles": MiembroExterno.ROLES}
+    )
+
+
+def aceptar_invitacion_externo(request, token):
+    """El profesional acepta la invitación; queda pendiente de aprobación de ambos padres."""
+    invitacion = get_object_or_404(InvitacionExterno, token=token)
+
+    if invitacion.aceptada:
+        messages.info(request, "Esta invitación ya fue utilizada.")
+        return redirect("core:dashboard" if request.user.is_authenticated else "account_login")
+
+    if not request.user.is_authenticated:
+        login_url = reverse("account_login")
+        return redirect(f"{login_url}?next={request.path}&email={invitacion.email}")
+
+    # Un usuario solo puede tener un rol externo activo a la vez (OneToOne).
+    externo, _ = MiembroExterno.objects.update_or_create(
+        user=request.user,
+        defaults={
+            "grupo": invitacion.grupo,
+            "rol": invitacion.rol,
+            "autorizado_por_padre": False,
+            "autorizado_por_madre": False,
+            "fecha_autorizacion": None,
+        },
+    )
+
+    invitacion.aceptada = True
+    invitacion.save()
+
+    registrar_actividad(
+        request.user,
+        "Invitación de profesional aceptada",
+        f"Se unió como {externo.get_rol_display()}, pendiente de aprobación.",
+    )
+
+    messages.success(
+        request,
+        "Has aceptado la invitación. El acceso se activará cuando ambos "
+        "progenitores lo aprueben.",
+    )
+    return redirect("core:panel_profesional")
+
+
+@login_required
+def panel_profesional(request):
+    """Vista de aterrizaje para un profesional externo: solo su propio canal de rol."""
+    externo = get_object_or_404(MiembroExterno, user=request.user)
+
+    if not externo.autorizado():
+        return render(request, "core/panel_profesional.html", {"externo": externo})
+
+    canal, _ = CanalRol.objects.get_or_create(grupo=externo.grupo, rol=externo.rol)
+    return redirect("core:canal_rol", canal_id=canal.id)
+
+
+@login_required
+def canal_rol(request, canal_id):
+    """Canal de mensajes + documentos de un rol: lo ven los padres del grupo y
+    los profesionales autorizados en ese mismo rol."""
+    canal = get_object_or_404(CanalRol, id=canal_id)
+
+    if not usuario_tiene_acceso_canal(request.user, canal):
+        return HttpResponseForbidden("No tienes acceso a este canal.")
+
+    if request.method == "POST":
+        form = MensajeCanalForm(request.POST)
+        if form.is_valid():
+            mensaje = form.save(commit=False)
+            mensaje.canal = canal
+            mensaje.autor = request.user
+            mensaje.save()
+            return redirect("core:canal_rol", canal_id=canal.id)
+    else:
+        form = MensajeCanalForm()
+
+    context = {
+        "canal": canal,
+        "mensajes": canal.mensajes.select_related("autor"),
+        "documentos": canal.documentos.select_related("subido_por"),
+        "form": form,
+        "documento_form": DocumentoCanalForm(),
+    }
+    return render(request, "core/canal_rol.html", context)
+
+
+@login_required
+def subir_documento_canal(request, canal_id):
+    """Sube un documento/informe al canal de un rol."""
+    canal = get_object_or_404(CanalRol, id=canal_id)
+
+    if not usuario_tiene_acceso_canal(request.user, canal):
+        return HttpResponseForbidden("No tienes acceso a este canal.")
+
+    if request.method == "POST":
+        form = DocumentoCanalForm(request.POST, request.FILES)
+        if form.is_valid():
+            documento = form.save(commit=False)
+            documento.canal = canal
+            documento.subido_por = request.user
+            documento.save()
+
+            # El comentario queda también en el historial de mensajes del
+            # canal, junto al documento (no solo como descripción suelta).
+            if documento.descripcion:
+                MensajeCanal.objects.create(
+                    canal=canal, autor=request.user, contenido=documento.descripcion
+                )
+
+            registrar_actividad(
+                request.user,
+                "Documento subido",
+                f"{documento.titulo} en el canal de {canal.get_rol_display()}.",
+            )
+            messages.success(request, "Documento subido correctamente.")
+
+    return redirect("core:canal_rol", canal_id=canal.id)
+
+
+@solo_padres
+def canal_alf(request):
+    """Biblioteca de documentos y mensajes clasificados por rol (Canal ALF).
+    Punto de entrada principal para padre/madre: acceso a todos los roles de
+    su grupo, incluyendo "General" para lo que no es de ningún profesional."""
+    canales = []
+    for valor, etiqueta in ROLES_CANAL:
+        canal, _ = CanalRol.objects.get_or_create(grupo=request.grupo, rol=valor)
+        canales.append(canal)
+
+    context = {
+        "canales": canales,
+        "roles": ROLES_CANAL,
+    }
+    return render(request, "core/canal_alf.html", context)
+
+
+@solo_padres
+def subir_documento_rol(request):
+    """Subida rápida desde el hub de Canal ALF: se elige el rol destino aquí
+    mismo, sin tener que entrar primero a ese canal."""
+    if request.method == "POST":
+        form = DocumentoCanalForm(request.POST, request.FILES)
+        rol = request.POST.get("rol")
+        roles_validos = dict(ROLES_CANAL)
+
+        if rol not in roles_validos:
+            messages.error(request, "Debes elegir un rol válido.")
+            return redirect("core:canal_alf")
+
+        canal, _ = CanalRol.objects.get_or_create(grupo=request.grupo, rol=rol)
+
+        if form.is_valid():
+            documento = form.save(commit=False)
+            documento.canal = canal
+            documento.subido_por = request.user
+            documento.save()
+
+            if documento.descripcion:
+                MensajeCanal.objects.create(
+                    canal=canal, autor=request.user, contenido=documento.descripcion
+                )
+
+            registrar_actividad(
+                request.user,
+                "Documento subido",
+                f"{documento.titulo} en el canal de {canal.get_rol_display()}.",
+            )
+            messages.success(
+                request, f"Documento guardado en {canal.get_rol_display()}."
+            )
+        else:
+            messages.error(request, "Revisa el formulario: falta el título o el archivo.")
+
+    return redirect("core:canal_alf")
+
+
+@login_required
+def descargar_documento_canal(request, doc_id):
+    """Sirve el archivo de un documento solo si el usuario tiene acceso al canal."""
+    documento = get_object_or_404(DocumentoCanal, id=doc_id)
+
+    if not usuario_tiene_acceso_canal(request.user, documento.canal):
+        return HttpResponseForbidden("No tienes acceso a este documento.")
+
+    return FileResponse(
+        documento.archivo.open("rb"),
+        as_attachment=True,
+        filename=documento.archivo.name.rsplit("/", 1)[-1],
+    )
 
 
 # Aprobación del Padre
-@login_required
+@solo_padres
 def aprobar_externo_padre(request, externo_id):
     """El padre aprueba la solicitud de acceso del profesional externo."""
     padre = Padre.objects.get(user=request.user)
@@ -300,7 +533,7 @@ def aprobar_externo_padre(request, externo_id):
 
 
 # Aprobación de la Madre
-@login_required
+@solo_padres
 def aprobar_externo_madre(request, externo_id):
     """La madre aprueba la solicitud de acceso del profesional externo."""
     madre = Padre.objects.get(user=request.user)
@@ -360,7 +593,7 @@ def aprobar_externo_madre(request, externo_id):
     return redirect("core:panel_externos")
 
 
-@login_required
+@solo_padres
 def revocar_externo(request, externo_id):
     """Padre o madre revocan el acceso del profesional externo."""
     admin = Padre.objects.get(user=request.user)

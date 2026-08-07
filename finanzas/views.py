@@ -7,12 +7,13 @@ from weasyprint import HTML
 import base64
 import tempfile
 from datetime import date
-from django.contrib.auth.decorators import login_required
 from django.db.models.aggregates import Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.views.generic import DeleteView, UpdateView
+from django.contrib import messages
+
 from .models import Pago, Gasto
 from .forms import PagoForm, GastoForm
 
@@ -21,12 +22,13 @@ from shared.services import enviar_notificacion_email
 
 # ✔ CORRECTO: esta es la función real que sí debes usar
 from core.models import registrar_actividad
+from core.decorators import solo_padres, SoloPadresMixin
 
 
 def _construir_contexto_resumen(request):
     """Arma el contexto de pagos/gastos/gráficos que comparten el resumen y el PDF."""
-    pagos = Pago.objects.order_by("-fecha")
-    gastos = Gasto.objects.order_by("-fecha")
+    pagos = Pago.objects.filter(grupo=request.grupo).order_by("-fecha")
+    gastos = Gasto.objects.filter(grupo=request.grupo).order_by("-fecha")
 
     # ---------------------------
     # FILTROS
@@ -58,10 +60,17 @@ def _construir_contexto_resumen(request):
     # ---------------------------
     # BALANCE AUTOMÁTICO
     # ---------------------------
-    total_padre = sum(g.monto for g in gastos if g.pagado_por == request.user)
-    total_madre = sum(g.monto for g in gastos if g.pagado_por != request.user)
-
-    balance = total_padre - total_madre
+    # Solo los gastos aún pendientes generan saldo: si la deuda 50/50 ya
+    # está finiquitada (con su comprobante), no debe seguir sumando al
+    # balance porque ya se saldó entre las partes.
+    balance = 0
+    for g in gastos:
+        if g.estado == "finiquitado":
+            continue
+        if g.pagado_por == request.user:
+            balance += g.deuda_50_50
+        elif g.pagado_por is not None:
+            balance -= g.deuda_50_50
 
     # ---------------------------
     # DATOS PARA EL GRÁFICO (orden cronológico ascendente)
@@ -71,6 +80,7 @@ def _construir_contexto_resumen(request):
         "labels": [g.fecha.isoformat() for g in gastos_con_fecha],
         "data": [float(g.monto) for g in gastos_con_fecha],
     }
+
     # GRÁFICO COMPARATIVO PADRE VS MADRE
     total_padre = (
         gastos.filter(pagado_por=request.user).aggregate(total=Sum("monto"))["total"]
@@ -86,6 +96,7 @@ def _construir_contexto_resumen(request):
         "data": [float(total_padre), float(total_madre)],
     }
 
+    # GRÁFICO MENSUAL
     gastos_por_mes = (
         gastos.annotate(mes=ExtractMonth("fecha"))
         .values("mes")
@@ -98,6 +109,7 @@ def _construir_contexto_resumen(request):
         "data": [float(g["total"]) for g in gastos_por_mes],
     }
 
+    # GRÁFICO ANUAL
     gastos_por_ano = (
         gastos.annotate(ano=ExtractYear("fecha"))
         .values("ano")
@@ -110,6 +122,12 @@ def _construir_contexto_resumen(request):
         "data": [float(g["total"]) for g in gastos_por_ano],
     }
 
+    # ---------------------------
+    # NUEVO: TOTALES POR MES Y AÑO
+    # ---------------------------
+    totales_por_mes = gastos_por_mes
+    totales_por_ano = gastos_por_ano
+
     return {
         "pagos": pagos,
         "gastos": gastos,
@@ -119,10 +137,12 @@ def _construir_contexto_resumen(request):
         "grafico_comparativo": grafico_comparativo,
         "grafico_mensual": grafico_mensual,
         "grafico_anual": grafico_anual,
+        "totales_por_mes": totales_por_mes,
+        "totales_por_ano": totales_por_ano,
     }
 
 
-@login_required
+@solo_padres
 def resumen(request):
     registrar_actividad(
         request.user,
@@ -134,43 +154,70 @@ def resumen(request):
     return render(request, "finanzas/resumen.html", contexto)
 
 
-@login_required
+@solo_padres
 def exportar_pdf(request):
     """Genera un PDF del resumen financiero."""
-
     contexto = _construir_contexto_resumen(request)
 
-    # Logo incrustado en base64: WeasyPrint no resuelve rutas /static/...
-    # sin una petición HTTP aparte, así que se embebe directo en el HTML.
     logo_path = finders.find("core/img/logo_pdf.png")
     if logo_path:
         with open(logo_path, "rb") as f:
             contexto["logo_base64"] = base64.b64encode(f.read()).decode("ascii")
 
-    # Renderizamos la plantilla HTML del PDF (con request para que
-    # pdf_resumen.html pueda comparar gasto.pagado_por == request.user)
     html_string = render_to_string(
         "finanzas/pdf_resumen.html", contexto, request=request
     )
 
-    # Creamos el PDF
     html = HTML(string=html_string)
     result = html.write_pdf()
 
-    # Enviamos el PDF como descarga
     response_pdf = HttpResponse(result, content_type="application/pdf")
     response_pdf["Content-Disposition"] = "attachment; filename=resumen_financiero.pdf"
 
     return response_pdf
 
 
-@login_required
+# ---------------------------------------------------------
+# NUEVO: PDF PARA JUZGADO
+# ---------------------------------------------------------
+@solo_padres
+def pdf_juzgado(request):
+    contexto = _construir_contexto_resumen(request)
+
+    logo_path = finders.find("core/img/logo_pdf.png")
+    if logo_path:
+        with open(logo_path, "rb") as f:
+            contexto["logo_base64"] = base64.b64encode(f.read()).decode("ascii")
+
+    html_string = render_to_string(
+        "finanzas/pdf_juzgado.html", contexto, request=request
+    )
+
+    html = HTML(string=html_string)
+    result = html.write_pdf()
+
+    response_pdf = HttpResponse(result, content_type="application/pdf")
+    response_pdf["Content-Disposition"] = "attachment; filename=resumen_juzgado.pdf"
+
+    return response_pdf
+
+
+# ---------------------------------------------------------
+# NUEVO: PANTALLA PARA ELEGIR TIPO DE PDF
+# ---------------------------------------------------------
+@solo_padres
+def elegir_pdf(request):
+    return render(request, "finanzas/elegir_pdf.html")
+
+
+@solo_padres
 def nuevo_pago(request):
     """Registrar un nuevo pago de manutención."""
     if request.method == "POST":
         form = PagoForm(request.POST, request.FILES)
         if form.is_valid():
             pago = form.save(commit=False)
+            pago.grupo = request.grupo
             pago.creado_por = request.user
 
             if pago.comprobante_pdf:
@@ -178,7 +225,6 @@ def nuevo_pago(request):
 
             pago.save()
 
-            # ✔ Registrar actividad correctamente
             registrar_actividad(
                 request.user, "crear_pago", f"Pago de {pago.monto} creado."
             )
@@ -194,10 +240,10 @@ def nuevo_pago(request):
     return render(request, "finanzas/pago_form.html", {"form": form})
 
 
-@login_required
+@solo_padres
 def marcar_pagado(request, pk):
     """Marcar un pago como pagado."""
-    pago = get_object_or_404(Pago, pk=pk)
+    pago = get_object_or_404(Pago, pk=pk, grupo=request.grupo)
     pago.estado = "pagado"
     pago.save()
 
@@ -214,13 +260,14 @@ def marcar_pagado(request, pk):
     return redirect(reverse("finanzas:resumen"))
 
 
-@login_required
+@solo_padres
 def nuevo_gasto(request):
     """Registrar un nuevo gasto compartido 50/50."""
     if request.method == "POST":
         form = GastoForm(request.POST, request.FILES)
         if form.is_valid():
             gasto = form.save(commit=False)
+            gasto.grupo = request.grupo
             gasto.pagado_por = request.user
 
             gasto.save()
@@ -241,12 +288,59 @@ def nuevo_gasto(request):
     return render(request, "finanzas/gasto_form.html", {"form": form})
 
 
+@solo_padres
+def pagar_deuda(request, pk):
+    """
+    Registrar el pago de la deuda 50/50 de un gasto compartido:
+    - Deuda pagada por: request.user
+    - Comprobante de la transferencia
+    - Estado: finiquitado
+    - Validación: el monto pagado debe ser >= deuda exacta
+    """
+    gasto = get_object_or_404(Gasto, pk=pk, grupo=request.grupo)
+
+    if request.method == "POST":
+        archivo = request.FILES.get("comprobante_deuda")
+        monto_pagado = request.POST.get("monto_deuda_pagada")
+
+        try:
+            monto_pagado = float(monto_pagado)
+        except:
+            messages.error(request, "Monto inválido.")
+            return redirect("finanzas:pagar_deuda", pk=pk)
+
+        if monto_pagado < float(gasto.deuda_50_50):
+            messages.error(
+                request,
+                f"El monto pagado ({monto_pagado}€) es inferior a la deuda exacta ({gasto.deuda_50_50}€).",
+            )
+            return redirect("finanzas:pagar_deuda", pk=pk)
+
+        gasto.comprobante_deuda = archivo
+        gasto.deuda_pagada_por = request.user
+        gasto.estado = "finiquitado"
+        gasto.save()
+
+        registrar_actividad(
+            request.user,
+            "pagar_deuda",
+            f"Deuda del gasto ID {gasto.id} saldada con {monto_pagado}€.",
+        )
+
+        return redirect("finanzas:resumen")
+
+    return render(request, "finanzas/pagar_deuda.html", {"gasto": gasto})
+
+
 # --- EDITAR PAGO ---
-class PagoUpdateView(UpdateView):
+class PagoUpdateView(SoloPadresMixin, UpdateView):
     model = Pago
     form_class = PagoForm
     template_name = "finanzas/editar_pago.html"
     success_url = reverse_lazy("finanzas:resumen")
+
+    def get_queryset(self):
+        return super().get_queryset().filter(grupo=self.grupo)
 
     def form_valid(self, form):
         registrar_actividad(
@@ -256,10 +350,13 @@ class PagoUpdateView(UpdateView):
 
 
 # --- ELIMINAR PAGO ---
-class PagoDeleteView(DeleteView):
+class PagoDeleteView(SoloPadresMixin, DeleteView):
     model = Pago
     template_name = "finanzas/eliminar_pago.html"
     success_url = reverse_lazy("finanzas:resumen")
+
+    def get_queryset(self):
+        return super().get_queryset().filter(grupo=self.grupo)
 
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
@@ -268,14 +365,16 @@ class PagoDeleteView(DeleteView):
         )
         return super().delete(request, *args, **kwargs)
 
-    # --- EDITAR GASTO ---
 
-
-class GastoUpdateView(UpdateView):
+# --- EDITAR GASTO ---
+class GastoUpdateView(SoloPadresMixin, UpdateView):
     model = Gasto
     form_class = GastoForm
     template_name = "finanzas/editar_gasto.html"
     success_url = reverse_lazy("finanzas:resumen")
+
+    def get_queryset(self):
+        return super().get_queryset().filter(grupo=self.grupo)
 
     def form_valid(self, form):
         registrar_actividad(
@@ -285,10 +384,13 @@ class GastoUpdateView(UpdateView):
 
 
 # --- ELIMINAR GASTO ---
-class GastoDeleteView(DeleteView):
+class GastoDeleteView(SoloPadresMixin, DeleteView):
     model = Gasto
     template_name = "finanzas/eliminar_gasto.html"
     success_url = reverse_lazy("finanzas:resumen")
+
+    def get_queryset(self):
+        return super().get_queryset().filter(grupo=self.grupo)
 
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()

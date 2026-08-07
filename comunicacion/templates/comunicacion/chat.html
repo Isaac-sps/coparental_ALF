@@ -24,19 +24,12 @@
     </div>
 
     <div class="col-md-4">
-        <h2>Archivos compartidos</h2>
-        <a href="{% url 'comunicacion:subir_archivo' %}" class="btn btn-secondary mb-3">Subir archivo</a>
-        <ul class="list-group">
-            {% for archivo in archivos_compartidos %}
-                <li class="list-group-item">
-                    <strong>{{ archivo.descripcion }}</strong><br>
-                    <a href="{{ archivo.archivo.url }}" target="_blank">{{ archivo.archivo.name }}</a><br>
-                    <small class="text-muted">{{ archivo.autor }} - {{ archivo.fecha_creacion }}</small>
-                </li>
-            {% empty %}
-                <li class="list-group-item">No hay archivos compartidos.</li>
-            {% endfor %}
-        </ul>
+        <h2>Documentos e informes</h2>
+        <p class="text-muted">
+            Los archivos compartidos (informes médicos, del colegio, etc.) se
+            suben y clasifican desde Canal ALF.
+        </p>
+        <a href="{% url 'core:canal_alf' %}" class="btn btn-secondary">Ir a Canal ALF</a>
     </div>
 </div>
 {% endblock %}

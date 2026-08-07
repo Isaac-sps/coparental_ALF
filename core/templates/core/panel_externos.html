@@ -1,7 +1,11 @@
 {% extends "core/base.html" %} {% block content %}
-<h2>Miembros externos del grupo</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Profesionales externos</h2>
+  <a href="{% url 'core:invitar_externo' %}" class="btn btn-primary">Invitar profesional</a>
+</div>
 
-<ul class="list-group">
+<h3>Miembros externos del grupo</h3>
+<ul class="list-group mb-4">
   {% for ext in externos %}
   <li class="list-group-item d-flex justify-content-between align-items-center">
     <!-- Información del profesional -->
@@ -16,7 +20,11 @@
 
     <!-- Botones de acción -->
     <div>
-      {% if not ext.autorizado %}
+      {% if ext.autorizado %}
+      <a href="{% url 'core:canal_rol' ext.canal_id %}" class="btn btn-outline-primary btn-sm ms-2">
+        Ver canal
+      </a>
+      {% else %}
       <!-- Botón del padre -->
       {% if not ext.autorizado_por_padre %}
       <a
@@ -46,7 +54,20 @@
       {% endif %}
     </div>
   </li>
+  {% empty %}
+  <li class="list-group-item text-muted">Todavía no hay profesionales invitados.</li>
   {% endfor %}
 </ul>
 
+<h3>Invitaciones pendientes</h3>
+<ul class="list-group">
+  {% for inv in invitaciones_externos %}
+  <li class="list-group-item">
+    {{ inv.email }} — {{ inv.get_rol_display }}
+    <span class="badge bg-warning text-dark ms-2">Pendiente</span>
+  </li>
+  {% empty %}
+  <li class="list-group-item text-muted">No hay invitaciones pendientes.</li>
+  {% endfor %}
+</ul>
 {% endblock %}

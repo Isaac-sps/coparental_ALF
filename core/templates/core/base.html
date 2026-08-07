@@ -48,6 +48,7 @@
 
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav me-auto">
+            {% if user.perfil_padre %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'calendario:lista' %}"
                 >Calendario</a
@@ -63,10 +64,25 @@
                 >Comunicación</a
               >
             </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'core:canal_alf' %}"
+                >Canal ALF</a
+              >
+            </li>
+            {% endif %}
           </ul>
-          
+
           <ul class="navbar-nav">
             {% if user.is_authenticated %}
+            {% if user.perfil_padre %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'core:panel_grupo' %}">Grupo</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'core:panel_externos' %}"
+                >Profesionales</a
+              >
+            </li>
             <li class="nav-item">
               <a class="nav-link" href="{% url 'core:perfil' %}">Perfil</a>
             </li>
@@ -75,6 +91,13 @@
                 >Historial</a
               >
             </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'core:panel_profesional' %}"
+                >Mi canal</a
+              >
+            </li>
+            {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'account_logout' %}">Salir</a>
             </li>

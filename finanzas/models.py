@@ -21,12 +21,15 @@ class Pago(models.Model):
         ("pagado", "Pagado"),
     ]
 
+    grupo = models.ForeignKey(
+        "core.GrupoCoparental", on_delete=models.CASCADE, related_name="pagos"
+    )
     monto = models.DecimalField("Monto", max_digits=8, decimal_places=2, default=300)
     fecha = models.DateField("Fecha del pago")
 
     comprobante_pdf = models.FileField(
         "Comprobante PDF",
-        upload_to="comprobantes/",  # ✔ Pago sigue usando la carpeta correcta
+        upload_to="comprobantes/",
         blank=True,
         null=True,
         validators=[validar_pdf],
@@ -49,14 +52,18 @@ class Pago(models.Model):
 
 
 class Gasto(models.Model):
-    """Gasto compartido 50/50 con un único comprobante (cualquier formato)."""
+    """Gasto compartido 50/50 con comprobantes y finiquito."""
 
+    grupo = models.ForeignKey(
+        "core.GrupoCoparental", on_delete=models.CASCADE, related_name="gastos"
+    )
     concepto = models.CharField("Concepto", max_length=255)
     monto = models.DecimalField("Monto", max_digits=8, decimal_places=2)
-    # ✔ Fecha real del gasto (soluciona el problema del filtro por mes)
-    fecha = models.DateField("Fecha del gasto", auto_now_add=True, null=True)  # ← CORRECTO
 
-    # ✔ AHORA: un solo campo que acepta cualquier archivo
+    # Fecha real del gasto
+    fecha = models.DateField("Fecha del gasto", auto_now_add=True, null=True)
+
+    # Comprobante del gasto original (cualquier formato)
     comprobante = models.FileField(
         "Comprobante",
         upload_to="comprobantes/gastos/",
@@ -64,6 +71,16 @@ class Gasto(models.Model):
         null=True,
     )
 
+    # Comprobante del pago de la deuda 50/50 (PDF)
+    comprobante_deuda = models.FileField(
+        "Comprobante de deuda",
+        upload_to="comprobantes/deuda/",
+        blank=True,
+        null=True,
+        validators=[validar_pdf],
+    )
+
+    # Quién pagó el gasto original
     pagado_por = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -72,6 +89,16 @@ class Gasto(models.Model):
         related_name="gastos_pagados",
     )
 
+    # Quién pagó la deuda 50/50
+    deuda_pagada_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deudas_pagadas",
+    )
+
+    # Deuda automática 50/50
     deuda_50_50 = models.DecimalField(
         "Deuda 50/50",
         max_digits=8,
@@ -81,6 +108,19 @@ class Gasto(models.Model):
 
     fecha_creacion = models.DateTimeField("Fecha de creación", auto_now_add=True)
 
+    # Estado del gasto compartido
+    ESTADO_CHOICES = [
+        ("pendiente", "Pendiente"),
+        ("finiquitado", "Finiquitado"),
+    ]
+
+    estado = models.CharField(
+        "Estado",
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default="pendiente",
+    )
+
     def save(self, *args, **kwargs):
         """Calcula automáticamente la deuda 50/50 antes de guardar."""
         self.deuda_50_50 = self.monto / 2
@@ -88,6 +128,3 @@ class Gasto(models.Model):
 
     def __str__(self):
         return f"{self.concepto} - {self.monto}€"
-
-
-# Create your models here.

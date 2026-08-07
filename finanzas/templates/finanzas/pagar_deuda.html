@@ -1,0 +1,48 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2 class="mb-3">Pagar deuda del gasto</h2>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            <h5 class="card-title">{{ gasto.concepto }}</h5>
+
+            <p class="mb-1"><strong>Monto total:</strong> {{ gasto.monto }}€</p>
+            <p class="mb-1"><strong>Deuda 50/50:</strong> {{ gasto.deuda_50_50 }}€</p>
+            <p class="mb-1"><strong>Pagado originalmente por:</strong> {{ gasto.pagado_por.first_name }}</p>
+
+            <hr>
+
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>Monto pagado (debe ser ≥ {{ gasto.deuda_50_50 }}€):</strong></label>
+                    <input type="number" step="0.01" name="monto_deuda_pagada" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>Comprobante PDF del pago:</strong></label>
+                    <input type="file" name="comprobante_deuda" accept="application/pdf" class="form-control" required>
+                </div>
+
+                <button type="submit" class="btn btn-success">
+                    Confirmar pago de deuda
+                </button>
+
+                <a href="{% url 'finanzas:resumen' %}" class="btn btn-secondary ms-2">
+                    Cancelar
+                </a>
+            </form>
+
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

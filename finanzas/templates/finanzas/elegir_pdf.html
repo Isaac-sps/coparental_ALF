@@ -1,0 +1,20 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2>Generar documento PDF</h2>
+    <p>Selecciona el tipo de documento que deseas generar:</p>
+
+    <a href="{% url 'finanzas:exportar_pdf' %}" class="btn btn-primary mt-3">
+        PDF de gastos corrientes
+    </a>
+
+    <a href="{% url 'finanzas:pdf_juzgado' %}" class="btn btn-danger mt-3 ms-3">
+        PDF resumen para juzgado
+    </a>
+
+</div>
+
+{% endblock %}

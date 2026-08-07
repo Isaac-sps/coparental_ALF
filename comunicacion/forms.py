@@ -1,6 +1,6 @@
-"""Formularios para chat y archivos."""
+"""Formularios para el chat interno."""
 from django import forms
-from .models import Mensaje, ArchivoCompartido
+from .models import Mensaje
 
 
 class MensajeForm(forms.ModelForm):
@@ -8,10 +8,3 @@ class MensajeForm(forms.ModelForm):
     class Meta:
         model = Mensaje
         fields = ["contenido"]
-
-
-class ArchivoForm(forms.ModelForm):
-    """Formulario para subir un archivo compartido."""
-    class Meta:
-        model = ArchivoCompartido
-        fields = ["archivo", "descripcion"]

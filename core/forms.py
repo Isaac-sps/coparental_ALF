@@ -1,7 +1,7 @@
 """Formularios de la app core."""
 from django import forms
 from django.contrib.auth.models import User
-from .models import Padre
+from .models import Padre, MensajeCanal, DocumentoCanal
 
 
 class UsuarioForm(forms.ModelForm):
@@ -26,3 +26,23 @@ class PadreForm(forms.ModelForm):
                 format="%Y-%m-%d", attrs={"type": "date"}
             ),
         }
+
+
+class MensajeCanalForm(forms.ModelForm):
+    """Formulario para enviar un mensaje dentro de un canal de rol."""
+    class Meta:
+        model = MensajeCanal
+        fields = ["contenido"]
+        labels = {"contenido": ""}
+        widgets = {
+            "contenido": forms.Textarea(
+                attrs={"rows": 2, "placeholder": "Escribe un mensaje..."}
+            ),
+        }
+
+
+class DocumentoCanalForm(forms.ModelForm):
+    """Formulario para subir un documento a un canal de rol."""
+    class Meta:
+        model = DocumentoCanal
+        fields = ["titulo", "archivo", "descripcion"]

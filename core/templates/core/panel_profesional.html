@@ -1,0 +1,20 @@
+{% extends "core/base.html" %} {% block content %}
+<h2>Acceso como {{ externo.get_rol_display }}</h2>
+
+<div class="alert alert-warning">
+  Tu acceso todavía no está activo. Falta la aprobación de
+  {% if not externo.autorizado_por_padre and not externo.autorizado_por_madre %}
+    ambos progenitores
+  {% elif not externo.autorizado_por_padre %}
+    uno de los progenitores
+  {% else %}
+    uno de los progenitores
+  {% endif %}
+  del grupo <strong>{{ externo.grupo.nombre }}</strong>.
+</div>
+
+<p class="text-muted">
+  En cuanto se active tu acceso, aquí verás tu canal con los mensajes e
+  informes/documentos relacionados con tu rol.
+</p>
+{% endblock %}

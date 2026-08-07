@@ -1,0 +1,55 @@
+{% extends "core/base.html" %} {% load crispy_forms_tags %} {% block content %}
+<h2>Canal de {{ canal.get_rol_display }}</h2>
+<p class="text-muted">{{ canal.grupo.nombre }}</p>
+
+<div class="row">
+  <div class="col-md-7">
+    <h4>Mensajes</h4>
+    <div class="mb-3" style="max-height: 400px; overflow-y: auto;">
+      {% for m in mensajes %}
+      <div class="mb-2">
+        <strong>{{ m.autor.get_full_name|default:m.autor.username }}</strong>
+        <small class="text-muted">{{ m.fecha_creacion|date:"d/m/Y H:i" }}</small>
+        <div>{{ m.contenido|linebreaksbr }}</div>
+      </div>
+      {% empty %}
+      <p class="text-muted">Todavía no hay mensajes en este canal.</p>
+      {% endfor %}
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      {{ form|crispy }}
+      <button type="submit" class="btn btn-primary mt-2">Enviar mensaje</button>
+    </form>
+  </div>
+
+  <div class="col-md-5">
+    <h4>Documentos e informes</h4>
+    <ul class="list-group mb-3">
+      {% for doc in documentos %}
+      <li class="list-group-item">
+        <a href="{% url 'core:descargar_documento_canal' doc.id %}">{{ doc.titulo }}</a>
+        <br />
+        <small class="text-muted">
+          {{ doc.subido_por.get_full_name|default:doc.subido_por.username }}
+          — {{ doc.fecha_creacion|date:"d/m/Y" }}
+        </small>
+        {% if doc.descripcion %}
+        <p class="mb-0 small">{{ doc.descripcion }}</p>
+        {% endif %}
+      </li>
+      {% empty %}
+      <li class="list-group-item text-muted">Todavía no hay documentos.</li>
+      {% endfor %}
+    </ul>
+
+    <h5>Subir documento</h5>
+    <form method="post" enctype="multipart/form-data" action="{% url 'core:subir_documento_canal' canal.id %}">
+      {% csrf_token %}
+      {{ documento_form|crispy }}
+      <button type="submit" class="btn btn-secondary mt-2">Subir</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

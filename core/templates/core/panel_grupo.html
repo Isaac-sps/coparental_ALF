@@ -1,29 +1,56 @@
 {% extends "core/base.html" %} {% block content %}
-<h2>Panel del Grupo Coparental</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Panel del Grupo Coparental</h2>
+  <a href="{% url 'core:invitar' %}" class="btn btn-primary">Invitar coparental</a>
+</div>
 
 <h3>Miembros del grupo</h3>
-<ul>
+{% if miembros %}
+<ul class="list-group mb-4">
   {% for miembro in miembros %}
-  <li>{{ miembro.user.get_full_name }} ({{ miembro.user.username }})</li>
-  {% endfor %}
-</ul>
-
-<h3>Invitaciones enviadas</h3>
-<ul>
-  {% for inv in invitaciones %}
-  <li>
-    {{ inv.email }} — {% if inv.aceptada %}
-    <strong>Aceptada</strong>
-    {% else %} Pendiente {% endif %}
+  <li class="list-group-item">
+    {{ miembro.user.get_full_name|default:miembro.user.username }}
+    <span class="text-muted">({{ miembro.user.email|default:"sin correo" }})</span>
   </li>
   {% endfor %}
 </ul>
+{% else %}
+<p class="text-muted mb-4">Todavía no hay miembros en este grupo.</p>
+{% endif %}
 
-<h3>Historial del grupo</h3>
-<ul>
-  {% for act in historial %}
-  <li>{{ act.fecha }} — {{ act.usuario }} — {{ act.accion }}</li>
+<h3>Invitaciones enviadas</h3>
+{% if invitaciones %}
+<ul class="list-group mb-4">
+  {% for inv in invitaciones %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <div>
+      {{ inv.email }}
+      <br />
+      <small class="text-muted">Enviada el {{ inv.creada_en|date:"d/m/Y H:i" }}</small>
+    </div>
+    {% if inv.aceptada %}
+    <span class="badge bg-success">Aceptada</span>
+    {% else %}
+    <span class="badge bg-warning text-dark">Pendiente</span>
+    {% endif %}
+  </li>
   {% endfor %}
 </ul>
+{% else %}
+<p class="text-muted mb-4">Todavía no has enviado invitaciones.</p>
+{% endif %}
 
+<h3>Historial del grupo</h3>
+{% if historial %}
+<ul class="list-group">
+  {% for act in historial %}
+  <li class="list-group-item">
+    <small class="text-muted">{{ act.fecha|date:"d/m/Y H:i" }}</small>
+    — {{ act.usuario }} — {{ act.accion }}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted">Todavía no hay actividad registrada.</p>
+{% endif %}
 {% endblock %}

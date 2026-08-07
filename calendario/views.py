@@ -1,27 +1,29 @@
 """Vistas para el calendario de eventos."""
 
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from .models import Evento
 from .forms import EventoForm
 from core.models import registrar_actividad
+from core.decorators import solo_padres
 
 
-@login_required
+@solo_padres
 def lista_eventos(request):
-    """Lista de todos los eventos (ambos padres ven todo)."""
-    eventos = Evento.objects.order_by("fecha_inicio")
+    """Lista de los eventos del grupo del usuario (ambos padres ven todo)."""
+    eventos = Evento.objects.filter(grupo=request.grupo).order_by("fecha_inicio")
     return render(request, "calendario/lista_eventos.html", {"eventos": eventos})
 
 
-@login_required
+@solo_padres
 def crear_evento(request):
-    """Crear un nuevo evento de calendario."""
+    """Crear un nuevo evento de calendario en el grupo del usuario."""
     if request.method == "POST":
         form = EventoForm(request.POST)
         if form.is_valid():
-            evento = form.save()
+            evento = form.save(commit=False)
+            evento.grupo = request.grupo
+            evento.save()
 
             # ⭐ NUEVO: registrar actividad al crear evento
             registrar_actividad(
@@ -35,10 +37,10 @@ def crear_evento(request):
     return render(request, "calendario/evento_form.html", {"form": form})
 
 
-@login_required
+@solo_padres
 def editar_evento(request, pk):
-    """Editar un evento existente (ambos padres pueden editar)."""
-    evento = get_object_or_404(Evento, pk=pk)
+    """Editar un evento existente del grupo del usuario."""
+    evento = get_object_or_404(Evento, pk=pk, grupo=request.grupo)
 
     if request.method == "POST":
         form = EventoForm(request.POST, instance=evento)
@@ -59,10 +61,10 @@ def editar_evento(request, pk):
     )
 
 
-@login_required
+@solo_padres
 def eliminar_evento(request, pk):
-    """Eliminar un evento existente (ambos padres pueden eliminar)."""
-    evento = get_object_or_404(Evento, pk=pk)
+    """Eliminar un evento existente del grupo del usuario."""
+    evento = get_object_or_404(Evento, pk=pk, grupo=request.grupo)
 
     if request.method == "POST":
         descripcion = str(evento)  # Guardamos la descripción antes de eliminar
@@ -82,4 +84,3 @@ def eliminar_evento(request, pk):
         "calendario/confirmar_eliminar.html",
         {"evento": evento}
     )
-

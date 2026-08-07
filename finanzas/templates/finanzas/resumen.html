@@ -1,4 +1,6 @@
-{% extends "core/base.html" %} {% load finanzas_extras %} {% block content %}
+{% extends "core/base.html" %}
+{% load finanzas_extras %}
+{% block content %}
 
 <form method="get" class="mb-4">
   <div class="row g-2">
@@ -9,13 +11,7 @@
 
     <div class="col-md-2">
       <label class="form-label">Año</label>
-      <input
-        type="number"
-        name="ano"
-        min="2000"
-        max="2100"
-        class="form-control"
-      />
+      <input type="number" name="ano" min="2000" max="2100" class="form-control" />
     </div>
 
     <div class="col-md-3">
@@ -44,12 +40,8 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Resumen financiero</h2>
   <div>
-    <a href="{% url 'finanzas:nuevo_pago' %}" class="btn btn-primary me-2"
-      >Nuevo pago</a
-    >
-    <a href="{% url 'finanzas:nuevo_gasto' %}" class="btn btn-secondary"
-      >Nuevo gasto</a
-    >
+    <a href="{% url 'finanzas:nuevo_pago' %}" class="btn btn-primary me-2">Nuevo pago</a>
+    <a href="{% url 'finanzas:nuevo_gasto' %}" class="btn btn-secondary">Nuevo gasto</a>
   </div>
 </div>
 
@@ -60,7 +52,7 @@
 </div>
 {% elif balance < 0 %}
 <div class="alert alert-warning">
-  Tú debes <strong>{{ balance|abs }}€</strong> a la madre.
+  Tú debes <strong>{{ balance|floatformat:2|slice:"1:" }}€</strong> a la madre.
 </div>
 {% else %}
 <div class="alert alert-info">Ambos están equilibrados (0€).</div>
@@ -87,27 +79,17 @@
       <td>
         {% if pago.comprobante_pdf %}
         <a href="{{ pago.comprobante_pdf.url }}" target="_blank">Ver PDF</a>
-        {% else %} Sin comprobante {% endif %}
+        {% else %}
+        Sin comprobante
+        {% endif %}
       </td>
 
       <td>
         {% if pago.estado != "pagado" %}
-        <a
-          href="{% url 'finanzas:marcar_pagado' pago.pk %}"
-          class="btn btn-sm btn-success me-1"
-          >Marcar pagado</a
-        >
+        <a href="{% url 'finanzas:marcar_pagado' pago.pk %}" class="btn btn-sm btn-success me-1">Marcar pagado</a>
         {% endif %}
-        <a
-          href="{% url 'finanzas:editar_pago' pago.pk %}"
-          class="btn btn-sm btn-warning me-1"
-          >Editar</a
-        >
-        <a
-          href="{% url 'finanzas:eliminar_pago' pago.pk %}"
-          class="btn btn-sm btn-danger"
-          >Eliminar</a
-        >
+        <a href="{% url 'finanzas:editar_pago' pago.pk %}" class="btn btn-sm btn-warning me-1">Editar</a>
+        <a href="{% url 'finanzas:eliminar_pago' pago.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
       </td>
     </tr>
     {% empty %}
@@ -294,20 +276,11 @@
 
 <!-- BOTONES RÁPIDOS -->
 <div class="mb-3 d-flex gap-2">
-  <a
-    href="?mes={{ hoy.month }}&ano={{ hoy.year }}"
-    class="btn btn-outline-primary btn-sm"
-    >Este mes</a
-  >
+  <a href="?mes={{ hoy.month }}&ano={{ hoy.year }}" class="btn btn-outline-primary btn-sm">Este mes</a>
   <a href="?pagado_por=padre" class="btn btn-outline-success btn-sm">Padre</a>
   <a href="?pagado_por=madre" class="btn btn-outline-warning btn-sm">Madre</a>
-  <a href="{% url 'finanzas:resumen' %}" class="btn btn-outline-dark btn-sm"
-    >Quitar filtros</a
-  >
-  <a href="{% url 'finanzas:exportar_pdf' %}" class="btn btn-outline-danger btn-sm">
-    Exportar PDF
-  </a>
-
+  <a href="{% url 'finanzas:resumen' %}" class="btn btn-outline-dark btn-sm">Quitar filtros</a>
+  <a href="{% url 'finanzas:elegir_pdf' %}" class="btn btn-outline-danger btn-sm">Exportar PDF</a>
 </div>
 
 <table class="table table-striped">
@@ -319,6 +292,7 @@
       <th>Pagado por</th>
       <th>Deuda 50/50</th>
       <th>Comprobante</th>
+      <th>Estado / Deuda</th>
       <th>Acciones</th>
     </tr>
   </thead>
@@ -341,42 +315,60 @@
       <td>{{ gasto.deuda_50_50 }}€</td>
 
       <td>
-        {% if gasto.comprobante %} {% with url=gasto.comprobante.url|lower %}
-        {% if url|slice:"-4" == ".pdf" %}
-        <a
-          href="{{ gasto.comprobante.url }}"
-          target="_blank"
-          class="btn btn-sm btn-info"
-          >Ver PDF</a
-        >
+        {% if gasto.comprobante %}
+          {% with url=gasto.comprobante.url|lower %}
+            {% if url|slice:"-4" == ".pdf" %}
+              <a href="{{ gasto.comprobante.url }}" target="_blank" class="btn btn-sm btn-info">Ver PDF</a>
+            {% else %}
+              <a href="{{ gasto.comprobante.url }}" target="_blank">
+                <img src="{{ gasto.comprobante.url }}" alt="Comprobante" style="max-height: 80px" />
+              </a>
+            {% endif %}
+          {% endwith %}
         {% else %}
-        <a href="{{ gasto.comprobante.url }}" target="_blank">
-          <img
-            src="{{ gasto.comprobante.url }}"
-            alt="Comprobante"
-            style="max-height: 80px"
-          />
-        </a>
-        {% endif %} {% endwith %} {% else %} Sin comprobante {% endif %}
+          Sin comprobante
+        {% endif %}
       </td>
 
       <td>
-        <a
-          href="{% url 'finanzas:editar_gasto' gasto.pk %}"
-          class="btn btn-sm btn-warning me-1"
-          >Editar</a
-        >
-        <a
-          href="{% url 'finanzas:eliminar_gasto' gasto.pk %}"
-          class="btn btn-sm btn-danger"
-          >Eliminar</a
-        >
+        {% if gasto.estado == "finiquitado" %}
+          <span class="badge bg-success mb-2">Finiquitado</span><br>
+
+          {% if gasto.deuda_pagada_por %}
+            <span class="badge bg-info">
+              Deuda pagada por: {{ gasto.deuda_pagada_por.first_name }}
+            </span><br>
+          {% endif %}
+
+          {% if gasto.comprobante_deuda %}
+            <a href="{{ gasto.comprobante_deuda.url }}" target="_blank"
+               class="btn btn-sm btn-primary mt-2">
+              Ver comprobante de deuda
+            </a>
+          {% endif %}
+
+        {% else %}
+          <a href="{% url 'finanzas:pagar_deuda' gasto.pk %}"
+             class="btn btn-sm btn-success">
+             Pagar deuda ({{ gasto.deuda_50_50 }}€)
+          </a>
+        {% endif %}
       </td>
+
+      <td>
+        {% if gasto.estado == "finiquitado" %}
+          <span class="text-muted">Gasto cerrado</span>
+        {% else %}
+          <a href="{% url 'finanzas:editar_gasto' gasto.pk %}" class="btn btn-sm btn-warning me-1">Editar</a>
+          <a href="{% url 'finanzas:eliminar_gasto' gasto.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
+        {% endif %}
+      </td>
+
     </tr>
 
     {% empty %}
     <tr>
-      <td colspan="7">No hay gastos registrados.</td>
+      <td colspan="8">No hay gastos registrados.</td>
     </tr>
     {% endfor %}
   </tbody>

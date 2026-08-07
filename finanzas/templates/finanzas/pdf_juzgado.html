@@ -1,0 +1,105 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Resumen financiero para juzgado</title>
+
+<style>
+body { font-family: Arial, sans-serif; margin: 25px; color: #333; }
+h1, h2 { color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 4px; }
+table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+th { background: #2c3e50; color: white; padding: 8px; }
+td { border: 1px solid #ccc; padding: 6px; }
+.section { margin-top: 25px; }
+.logo { width: 140px; margin-bottom: 20px; }
+</style>
+</head>
+
+<body>
+
+{% if logo_base64 %}
+<img src="data:image/png;base64,{{ logo_base64 }}" class="logo">
+{% endif %}
+
+<h1>Resumen financiero para presentación judicial</h1>
+<p><strong>Fecha de generación:</strong> {{ hoy }}</p>
+
+<div class="section">
+<h2>Balance general</h2>
+
+{% if balance > 0 %}
+<p>La madre debe al padre: <strong>{{ balance }}€</strong></p>
+{% elif balance < 0 %}
+<p>El padre debe a la madre: <strong>{{ balance|floatformat:2|slice:"1:" }}€</strong></p>
+{% else %}
+<p>Ambos están equilibrados (0€).</p>
+{% endif %}
+</div>
+
+<div class="section">
+<h2>Gastos compartidos</h2>
+
+<table>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>Monto</th>
+<th>Fecha</th>
+<th>Pagado por</th>
+<th>Deuda 50/50</th>
+<th>Estado</th>
+<th>Pagada por</th>
+</tr>
+</thead>
+
+<tbody>
+{% for gasto in gastos %}
+<tr>
+<td>{{ gasto.concepto }}</td>
+<td>{{ gasto.monto }}€</td>
+<td>{{ gasto.fecha }}</td>
+<td>{{ gasto.pagado_por.first_name }}</td>
+<td>{{ gasto.deuda_50_50 }}€</td>
+<td>{{ gasto.estado }}</td>
+<td>
+{% if gasto.deuda_pagada_por %}
+{{ gasto.deuda_pagada_por.first_name }}
+{% else %}
+Pendiente
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+<div class="section">
+<h2>Resumen de deudas saldadas</h2>
+
+{% with total_padre=0 total_madre=0 %}
+{% for gasto in gastos %}
+{% if gasto.estado == "finiquitado" %}
+{% if gasto.deuda_pagada_por == request.user %}
+{% with total_padre=total_padre|add:gasto.deuda_50_50 %}{% endwith %}
+{% else %}
+{% with total_madre=total_madre|add:gasto.deuda_50_50 %}{% endwith %}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+<p>Total saldado por el padre: <strong>{{ total_padre }}€</strong></p>
+<p>Total saldado por la madre: <strong>{{ total_madre }}€</strong></p>
+{% endwith %}
+</div>
+
+<div class="section">
+<h2>Firma</h2>
+<p>______________________________</p>
+<p>Firma del declarante</p>
+</div>
+
+</body>
+</html>

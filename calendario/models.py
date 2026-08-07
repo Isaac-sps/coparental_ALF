@@ -16,6 +16,9 @@ class Evento(models.Model):
         ("montblanc_ap2", "Montblanc AP-2"),
     ]
 
+    grupo = models.ForeignKey(
+        "core.GrupoCoparental", on_delete=models.CASCADE, related_name="eventos"
+    )
     tipo = models.CharField("Tipo de evento", max_length=20, choices=TIPO_CHOICES)
     fecha_inicio = models.DateField("Fecha de inicio")
     fecha_fin = models.DateField("Fecha de fin")

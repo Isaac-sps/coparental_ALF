@@ -1,0 +1,47 @@
+{% load crispy_forms_tags %}
+<!doctype html>
+<html lang="es">
+  <head>
+    {% include "account/_entrance_head.html" with page_title="Crear cuenta" %}
+  </head>
+
+  <body class="login-page">
+    <div class="login-shell">
+      {% include "account/_entrance_brand.html" %}
+
+      <div class="login-form-panel">
+        <div class="login-card">
+          <h2>Crear cuenta</h2>
+          <p class="subtitle">Regístrate para gestionar tu grupo coparental</p>
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2">
+              {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <form method="post" action="{% url 'account_signup' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" novalidate>
+            {% csrf_token %}
+
+            {{ form.username|as_crispy_field }}
+            {{ form.email|as_crispy_field }}
+            {{ form.password1|as_crispy_field }}
+            {{ form.password2|as_crispy_field }}
+            {{ redirect_field }}
+
+            <button type="submit" class="btn btn-primary w-100 py-2 mt-2">Crear cuenta</button>
+          </form>
+
+          <hr class="my-4" />
+
+          <p class="text-center mb-0 login-links">
+            ¿Ya tienes cuenta?
+            <a href="{% url 'account_login' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">Iniciar sesión</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -103,6 +103,14 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
+# Sin esto, Django/allauth redirigen tras login a /accounts/profile/ (no existe en este proyecto)
+LOGIN_REDIRECT_URL = 'core:dashboard'
+LOGIN_URL = 'account_login'
+
+# El email es obligatorio en el registro: lo usan las invitaciones, el
+# restablecimiento de contraseña y las notificaciones del grupo.
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
+
 WSGI_APPLICATION = 'coparental_alf.wsgi.application'
 
 
@@ -197,7 +205,7 @@ EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@coparental.local")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@coparental.com")
 
 # Celery + Redis
 CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
@@ -223,6 +231,3 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # URL base del sitio (cámbiala cuando tengas dominio real)
 SITE_URL = "http://localhost:8000"
-
-# Dirección desde la cual se enviarán los correos
-DEFAULT_FROM_EMAIL = "no-reply@coparental.com"
