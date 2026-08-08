@@ -1,0 +1,48 @@
+{% extends "core/base.html" %} {% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h2 class="mb-0 text-capitalize">{{ mes_actual|date:"F Y" }}</h2>
+  <div class="d-flex gap-2">
+    <a href="?mes={{ mes_anterior.month }}&ano={{ mes_anterior.year }}" class="btn btn-outline-secondary btn-sm">
+      &laquo; Mes anterior
+    </a>
+    <a href="{% url 'calendario:lista' %}" class="btn btn-outline-primary btn-sm">Hoy</a>
+    <a href="?mes={{ mes_siguiente.month }}&ano={{ mes_siguiente.year }}" class="btn btn-outline-secondary btn-sm">
+      Mes siguiente &raquo;
+    </a>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'calendario:historial' %}" class="btn btn-outline-dark btn-sm">Historial de eventos</a>
+    <a href="{% url 'calendario:nuevo' %}" class="btn btn-primary btn-sm">Nuevo evento</a>
+  </div>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-bordered text-center align-top" style="table-layout: fixed;">
+    <thead>
+      <tr>
+        {% for dia in dias_semana %}
+        <th>{{ dia }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for semana in semanas %}
+      <tr>
+        {% for dia in semana %}
+        <td style="height: 110px; width: 14.28%;" class="{% if not dia.del_mes %}bg-light text-muted{% endif %} {% if dia.fecha == hoy %}border border-primary border-2{% endif %}">
+          <div class="fw-bold small {% if dia.fecha == hoy %}text-primary{% endif %}">{{ dia.fecha.day }}</div>
+          {% for evento in dia.eventos %}
+          <a href="{% url 'calendario:editar' evento.pk %}"
+             class="d-block small text-truncate rounded px-1 mb-1 text-white text-decoration-none {% if evento.tipo == 'visita' %}bg-success{% else %}bg-info{% endif %}"
+             title="{{ evento.get_tipo_display }}: {{ evento.get_punto_encuentro_display }}">
+            {{ evento.get_tipo_display }}
+          </a>
+          {% endfor %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

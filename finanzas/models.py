@@ -3,6 +3,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.utils.dateformat import format as date_format
 
 
 # ---------------------------
@@ -128,3 +129,8 @@ class Gasto(models.Model):
 
     def __str__(self):
         return f"{self.concepto} - {self.monto}€"
+
+    @property
+    def periodo_label(self):
+        """Mes y año del gasto, para agrupar en la tabla (ej. 'Agosto 2026')."""
+        return date_format(self.fecha, "F Y").capitalize() if self.fecha else "Sin fecha"

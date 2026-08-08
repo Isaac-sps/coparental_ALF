@@ -102,79 +102,125 @@
 
 <h3>Gastos compartidos</h3>
 
-<!-- ⭐ GRÁFICO DE GASTOS -->
-<h3 class="mt-4">Gráfico de gastos</h3>
-<div style="position: relative; height: 320px">
-  <canvas id="graficoGastos"></canvas>
+<!-- ⭐ GRÁFICOS: colapsados por defecto para no saturar la pantalla -->
+<div class="accordion mb-4" id="acordeonGraficos">
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#colGraficoGastos">
+        Gráfico de gastos
+      </button>
+    </h2>
+    <div id="colGraficoGastos" class="accordion-collapse collapse" data-bs-parent="#acordeonGraficos">
+      <div class="accordion-body">
+        <div style="position: relative; height: 320px">
+          <canvas id="graficoGastos"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#colGraficoComparativo">
+        Comparación Padre vs Madre
+      </button>
+    </h2>
+    <div id="colGraficoComparativo" class="accordion-collapse collapse" data-bs-parent="#acordeonGraficos">
+      <div class="accordion-body">
+        <div style="position: relative; height: 260px">
+          <canvas id="graficoComparativo"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#colGraficoMensual">
+        Gastos por mes
+      </button>
+    </h2>
+    <div id="colGraficoMensual" class="accordion-collapse collapse" data-bs-parent="#acordeonGraficos">
+      <div class="accordion-body">
+        <div style="position: relative; height: 260px">
+          <canvas id="graficoMensual"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#colGraficoAnual">
+        Gastos por año
+      </button>
+    </h2>
+    <div id="colGraficoAnual" class="accordion-collapse collapse" data-bs-parent="#acordeonGraficos">
+      <div class="accordion-body">
+        <div style="position: relative; height: 260px">
+          <canvas id="graficoAnual"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 {{ grafico_gastos|json_script:"grafico-gastos-data" }}
+{{ grafico_comparativo|json_script:"grafico-comparativo-data" }}
+{{ grafico_mensual|json_script:"grafico-mensual-data" }}
+{{ grafico_anual|json_script:"grafico-anual-data" }}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const graficoGastosData = JSON.parse(document.getElementById('grafico-gastos-data').textContent);
-  const labels = graficoGastosData.labels;
-  const data = graficoGastosData.data;
+  // Los gráficos empiezan colapsados; Chart.js no dibuja bien en un canvas
+  // oculto, así que cada uno se crea recién cuando su acordeón se abre
+  // por primera vez (evita saturar la pantalla Y evita canvases en blanco).
+  const definicionesGraficos = {
+    graficoGastos: {
+      dataId: "grafico-gastos-data",
+      label: "Gastos (€)",
+      backgroundColor: "rgba(54, 162, 235, 0.6)",
+      borderColor: "rgba(54, 162, 235, 1)",
+    },
+    graficoComparativo: {
+      dataId: "grafico-comparativo-data",
+      label: "Total pagado (€)",
+      backgroundColor: ["rgba(54, 162, 235, 0.6)", "rgba(255, 159, 64, 0.6)"],
+      borderColor: ["rgba(54, 162, 235, 1)", "rgba(255, 159, 64, 1)"],
+    },
+    graficoMensual: {
+      dataId: "grafico-mensual-data",
+      label: "Gastos por mes (€)",
+      backgroundColor: "rgba(75, 192, 192, 0.6)",
+      borderColor: "rgba(75, 192, 192, 1)",
+    },
+    graficoAnual: {
+      dataId: "grafico-anual-data",
+      label: "Gastos por año (€)",
+      backgroundColor: "rgba(153, 102, 255, 0.6)",
+      borderColor: "rgba(153, 102, 255, 1)",
+    },
+  };
 
-  const canvas = document.getElementById('graficoGastos');
-  const ctx = canvas ? canvas.getContext('2d') : null;
+  function crearGrafico(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || canvas.dataset.creado) return;
 
-  if (ctx && labels.length) {
-      new Chart(ctx, {
-          type: 'bar',
-          data: {
-              labels,
-              datasets: [{
-                  label: 'Gastos (€)',
-                  data,
-                  backgroundColor: "rgba(54, 162, 235, 0.6)",
-                  borderColor: "rgba(54, 162, 235, 1)"
-              }]
-          },
-          options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                  y: { beginAtZero: true }
-              }
-          }
-      });
-  }
-</script>
+    const def = definicionesGraficos[canvasId];
+    const datos = JSON.parse(document.getElementById(def.dataId).textContent);
+    if (!datos.labels.length) return;
 
-<!-- ⭐ GRÁFICO COMPARATIVO PADRE VS MADRE -->
-<h3 class="mt-5">Comparación Padre vs Madre</h3>
-
-<div style="position: relative; height: 260px;">
-  <canvas id="graficoComparativo"></canvas>
-</div>
-
-{{ grafico_comparativo|json_script:"grafico-comparativo-data" }}
-
-<script>
-  const comparativoData = JSON.parse(
-    document.getElementById("grafico-comparativo-data").textContent
-  );
-
-  const ctxComparativo = document.getElementById("graficoComparativo")?.getContext("2d");
-
-  if (ctxComparativo) {
-    new Chart(ctxComparativo, {
+    canvas.dataset.creado = "1";
+    new Chart(canvas.getContext("2d"), {
       type: "bar",
       data: {
-        labels: comparativoData.labels,
+        labels: datos.labels,
         datasets: [
           {
-            label: "Total pagado (€)",
-            data: comparativoData.data,
-            backgroundColor: [
-              "rgba(54, 162, 235, 0.6)",   // Padre
-              "rgba(255, 159, 64, 0.6)",   // Madre
-            ],
-            borderColor: [
-              "rgba(54, 162, 235, 1)",
-              "rgba(255, 159, 64, 1)",
-            ],
+            label: def.label,
+            data: datos.data,
+            backgroundColor: def.backgroundColor,
+            borderColor: def.borderColor,
             borderWidth: 1,
           },
         ],
@@ -182,96 +228,16 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        scales: {
-          y: { beginAtZero: true },
-        },
+        scales: { y: { beginAtZero: true } },
       },
     });
   }
-</script>
 
-<!-- ⭐ GRÁFICO MENSUAL -->
-<h3 class="mt-5">Gastos por mes</h3>
-
-<div style="position: relative; height: 260px;">
-  <canvas id="graficoMensual"></canvas>
-</div>
-
-{{ grafico_mensual|json_script:"grafico-mensual-data" }}
-
-<script>
-  const mensualData = JSON.parse(
-    document.getElementById("grafico-mensual-data").textContent
-  );
-
-  const ctxMensual = document.getElementById("graficoMensual")?.getContext("2d");
-
-  if (ctxMensual) {
-    new Chart(ctxMensual, {
-      type: "bar",
-      data: {
-        labels: mensualData.labels,
-        datasets: [
-          {
-            label: "Gastos por mes (€)",
-            data: mensualData.data,
-            backgroundColor: "rgba(75, 192, 192, 0.6)",
-            borderColor: "rgba(75, 192, 192, 1)",
-            borderWidth: 1,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: { beginAtZero: true },
-        },
-      },
+  document.querySelectorAll("#acordeonGraficos .accordion-collapse").forEach((el) => {
+    el.addEventListener("shown.bs.collapse", () => {
+      crearGrafico(el.querySelector("canvas").id);
     });
-  }
-</script>
-
-<!-- ⭐ GRÁFICO ANUAL -->
-<h3 class="mt-5">Gastos por año</h3>
-
-<div style="position: relative; height: 260px;">
-  <canvas id="graficoAnual"></canvas>
-</div>
-
-{{ grafico_anual|json_script:"grafico-anual-data" }}
-
-<script>
-  const anualData = JSON.parse(
-    document.getElementById("grafico-anual-data").textContent
-  );
-
-  const ctxAnual = document.getElementById("graficoAnual")?.getContext("2d");
-
-  if (ctxAnual) {
-    new Chart(ctxAnual, {
-      type: "bar",
-      data: {
-        labels: anualData.labels,
-        datasets: [
-          {
-            label: "Gastos por año (€)",
-            data: anualData.data,
-            backgroundColor: "rgba(153, 102, 255, 0.6)",
-            borderColor: "rgba(153, 102, 255, 1)",
-            borderWidth: 1,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: { beginAtZero: true },
-        },
-      },
-    });
-  }
+  });
 </script>
 
 <!-- BOTONES RÁPIDOS -->
@@ -283,95 +249,111 @@
   <a href="{% url 'finanzas:elegir_pdf' %}" class="btn btn-outline-danger btn-sm">Exportar PDF</a>
 </div>
 
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Concepto</th>
-      <th>Monto</th>
-      <th>Fecha</th>
-      <th>Pagado por</th>
-      <th>Deuda 50/50</th>
-      <th>Comprobante</th>
-      <th>Estado / Deuda</th>
-      <th>Acciones</th>
-    </tr>
-  </thead>
+{% regroup gastos by periodo_label as gastos_por_periodo %}
+<div class="accordion mb-4" id="acordeonGastos">
+  {% for periodo in gastos_por_periodo %}
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button"
+        data-bs-toggle="collapse" data-bs-target="#colGastos{{ forloop.counter }}">
+        {{ periodo.grouper }}
+        <span class="badge bg-secondary ms-2">{{ periodo.list|length }}</span>
+      </button>
+    </h2>
+    <div id="colGastos{{ forloop.counter }}"
+         class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+         data-bs-parent="#acordeonGastos">
+      <div class="accordion-body p-0">
+        <table class="table table-striped mb-0">
+          <thead>
+            <tr>
+              <th>Concepto</th>
+              <th>Monto</th>
+              <th>Fecha</th>
+              <th>Pagado por</th>
+              <th>Deuda 50/50</th>
+              <th>Comprobante</th>
+              <th>Estado / Deuda</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
 
-  <tbody>
-    {% for gasto in gastos %}
-    <tr>
-      <td>{{ gasto.concepto }}</td>
-      <td>{{ gasto.monto }}€</td>
-      <td>{{ gasto.fecha }}</td>
+          <tbody>
+            {% for gasto in periodo.list %}
+            <tr>
+              <td>{{ gasto.concepto }}</td>
+              <td>{{ gasto.monto }}€</td>
+              <td>{{ gasto.fecha }}</td>
 
-      <td>
-        {% if gasto.pagado_por == request.user %}
-        <span class="badge bg-primary">Padre</span>
-        {% else %}
-        <span class="badge bg-secondary">Madre</span>
-        {% endif %}
-      </td>
+              <td>
+                {% if gasto.pagado_por == request.user %}
+                <span class="badge bg-primary">Padre</span>
+                {% else %}
+                <span class="badge bg-secondary">Madre</span>
+                {% endif %}
+              </td>
 
-      <td>{{ gasto.deuda_50_50 }}€</td>
+              <td>{{ gasto.deuda_50_50 }}€</td>
 
-      <td>
-        {% if gasto.comprobante %}
-          {% with url=gasto.comprobante.url|lower %}
-            {% if url|slice:"-4" == ".pdf" %}
-              <a href="{{ gasto.comprobante.url }}" target="_blank" class="btn btn-sm btn-info">Ver PDF</a>
-            {% else %}
-              <a href="{{ gasto.comprobante.url }}" target="_blank">
-                <img src="{{ gasto.comprobante.url }}" alt="Comprobante" style="max-height: 80px" />
-              </a>
-            {% endif %}
-          {% endwith %}
-        {% else %}
-          Sin comprobante
-        {% endif %}
-      </td>
+              <td>
+                {% if gasto.comprobante %}
+                  {% with url=gasto.comprobante.url|lower %}
+                    {% if url|slice:"-4" == ".pdf" %}
+                      <a href="{{ gasto.comprobante.url }}" target="_blank" class="btn btn-sm btn-info">Ver PDF</a>
+                    {% else %}
+                      <a href="{{ gasto.comprobante.url }}" target="_blank">
+                        <img src="{{ gasto.comprobante.url }}" alt="Comprobante" style="max-height: 80px" />
+                      </a>
+                    {% endif %}
+                  {% endwith %}
+                {% else %}
+                  Sin comprobante
+                {% endif %}
+              </td>
 
-      <td>
-        {% if gasto.estado == "finiquitado" %}
-          <span class="badge bg-success mb-2">Finiquitado</span><br>
+              <td>
+                {% if gasto.estado == "finiquitado" %}
+                  <span class="badge bg-success mb-2">Finiquitado</span><br>
 
-          {% if gasto.deuda_pagada_por %}
-            <span class="badge bg-info">
-              Deuda pagada por: {{ gasto.deuda_pagada_por.first_name }}
-            </span><br>
-          {% endif %}
+                  {% if gasto.deuda_pagada_por %}
+                    <span class="badge bg-info">
+                      Deuda pagada por: {{ gasto.deuda_pagada_por.first_name }}
+                    </span><br>
+                  {% endif %}
 
-          {% if gasto.comprobante_deuda %}
-            <a href="{{ gasto.comprobante_deuda.url }}" target="_blank"
-               class="btn btn-sm btn-primary mt-2">
-              Ver comprobante de deuda
-            </a>
-          {% endif %}
+                  {% if gasto.comprobante_deuda %}
+                    <a href="{{ gasto.comprobante_deuda.url }}" target="_blank"
+                       class="btn btn-sm btn-primary mt-2">
+                      Ver PDF
+                    </a>
+                  {% endif %}
 
-        {% else %}
-          <a href="{% url 'finanzas:pagar_deuda' gasto.pk %}"
-             class="btn btn-sm btn-success">
-             Pagar deuda ({{ gasto.deuda_50_50 }}€)
-          </a>
-        {% endif %}
-      </td>
+                {% else %}
+                  <a href="{% url 'finanzas:pagar_deuda' gasto.pk %}"
+                     class="btn btn-sm btn-success">
+                     Pagar deuda ({{ gasto.deuda_50_50 }}€)
+                  </a>
+                {% endif %}
+              </td>
 
-      <td>
-        {% if gasto.estado == "finiquitado" %}
-          <span class="text-muted">Gasto cerrado</span>
-        {% else %}
-          <a href="{% url 'finanzas:editar_gasto' gasto.pk %}" class="btn btn-sm btn-warning me-1">Editar</a>
-          <a href="{% url 'finanzas:eliminar_gasto' gasto.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
-        {% endif %}
-      </td>
-
-    </tr>
-
-    {% empty %}
-    <tr>
-      <td colspan="8">No hay gastos registrados.</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+              <td>
+                {% if gasto.estado == "finiquitado" %}
+                  <span class="text-muted">Gasto cerrado</span>
+                {% else %}
+                  <a href="{% url 'finanzas:editar_gasto' gasto.pk %}" class="btn btn-sm btn-warning me-1">Editar</a>
+                  <a href="{% url 'finanzas:eliminar_gasto' gasto.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <p>No hay gastos registrados.</p>
+  {% endfor %}
+</div>
 
 {% endblock %}

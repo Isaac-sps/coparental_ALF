@@ -1,0 +1,80 @@
+{% extends "core/base.html" %} {% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Historial de eventos</h2>
+  <a href="{% url 'calendario:lista' %}" class="btn btn-outline-primary btn-sm">Ver calendario</a>
+</div>
+<p class="text-muted">
+  Por defecto se muestran los eventos pasados. Busca por texto en las notas,
+  filtra por tipo o por rango de fechas para encontrar cualquier evento
+  registrado, sin salir de la herramienta.
+</p>
+
+<form method="get" class="row g-2 mb-4">
+  <div class="col-md-4">
+    <label class="form-label">Buscar en notas</label>
+    <input type="text" name="q" value="{{ texto }}" class="form-control" placeholder="Ej: cumpleaños, colegio..." />
+  </div>
+  <div class="col-md-2">
+    <label class="form-label">Tipo</label>
+    <select name="tipo" class="form-control">
+      <option value="">Todos</option>
+      {% for valor, etiqueta in tipo_choices %}
+      <option value="{{ valor }}" {% if tipo == valor %}selected{% endif %}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <label class="form-label">Desde</label>
+    <input type="date" name="desde" value="{{ desde|default:'' }}" class="form-control" />
+  </div>
+  <div class="col-md-2">
+    <label class="form-label">Hasta</label>
+    <input type="date" name="hasta" value="{{ hasta|default:'' }}" class="form-control" />
+  </div>
+  <div class="col-md-2 d-flex align-items-end">
+    <div class="form-check">
+      <input type="checkbox" name="incluir_futuros" value="1" id="incluirFuturos" class="form-check-input"
+        {% if incluir_futuros %}checked{% endif %} />
+      <label class="form-check-label" for="incluirFuturos">Incluir futuros</label>
+    </div>
+  </div>
+  <div class="col-12">
+    <button type="submit" class="btn btn-dark btn-sm">Buscar</button>
+    <a href="{% url 'calendario:historial' %}" class="btn btn-outline-dark btn-sm">Quitar filtros</a>
+  </div>
+</form>
+
+{% regroup eventos by mes_label as eventos_por_mes %}
+{% for mes in eventos_por_mes %}
+<h5 class="text-uppercase text-muted small fw-bold mt-4 mb-2">{{ mes.grouper }}</h5>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Tipo</th>
+      <th>Inicio</th>
+      <th>Fin</th>
+      <th>Punto de encuentro</th>
+      <th>Notas</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for evento in mes.list %}
+    <tr>
+      <td>{{ evento.get_tipo_display }}</td>
+      <td>{{ evento.fecha_inicio }}</td>
+      <td>{{ evento.fecha_fin }}</td>
+      <td>{{ evento.get_punto_encuentro_display }}</td>
+      <td>{{ evento.notas|default:"—" }}</td>
+      <td>
+        <a href="{% url 'calendario:editar' evento.pk %}" class="btn btn-sm btn-secondary">Editar</a>
+        <a href="{% url 'calendario:eliminar' evento.pk %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% empty %}
+<p class="text-muted">No se encontraron eventos con esos filtros.</p>
+{% endfor %}
+{% endblock %}
