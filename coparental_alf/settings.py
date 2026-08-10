@@ -71,6 +71,7 @@ CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -126,11 +127,11 @@ DB_PORT = env('DB_PORT', default=3306)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'coparental_alf',
-        'USER': 'leonel',
-        'PASSWORD': 'Test1234!',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
         }
@@ -184,8 +185,16 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
-# WhiteNoise para servir estáticos en producción
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# WhiteNoise para servir estáticos comprimidos y con cache-busting en producción.
+# (STATICFILES_STORAGE como string quedó obsoleto en Django 5; ahora es STORAGES)
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Archivos media (comprobantes, fotos, etc.)
 MEDIA_URL = "/media/"
@@ -208,7 +217,26 @@ EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@coparental.com")
 
 # Celery + Redis
-CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+# Se arma a partir de REDIS_HOST/REDIS_PORT/REDIS_PASSWORD (lo normal en el
+# VPS, con Redis protegido por contraseña). Si prefieres pasar la URL ya
+# armada, definí REDIS_URL en el .env y esa tiene prioridad.
+REDIS_HOST = env("REDIS_HOST", default="localhost")
+REDIS_PORT = env.int("REDIS_PORT", default=6379)
+REDIS_PASSWORD = env("REDIS_PASSWORD", default="")
+REDIS_DB = env.int("REDIS_DB", default=0)
+
+if REDIS_PASSWORD:
+    # La contraseña puede traer símbolos (!, #, @...) que rompen la URL si no
+    # se codifican: sin esto, un "#" corta la cadena ahí y arruina la conexión.
+    from urllib.parse import quote as _url_quote
+
+    _redis_url_default = (
+        f"redis://:{_url_quote(REDIS_PASSWORD, safe='')}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+    )
+else:
+    _redis_url_default = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
+CELERY_BROKER_URL = env("REDIS_URL", default=_redis_url_default)
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
@@ -229,5 +257,24 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CONFIGURACIÓN PARA INVITACIONES POR EMAIL
 # ---------------------------------------------------------
 
-# URL base del sitio (cámbiala cuando tengas dominio real)
-SITE_URL = "http://localhost:8000"
+# URL base del sitio, usada para construir enlaces en los correos
+# (invitaciones, etc). En producción se define en el .env del servidor.
+SITE_URL = env("SITE_URL", default="http://localhost:8000")
+
+
+# ---------------------------------------------------------
+# SEGURIDAD EN PRODUCCIÓN (solo se activa cuando DEBUG=False)
+# ---------------------------------------------------------
+if not DEBUG:
+    # Dominios desde los que se aceptan peticiones POST (nginx detrás de HTTPS).
+    # Ej. en el .env del VPS: CSRF_TRUSTED_ORIGINS=https://tudominio.com
+    CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+    SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30  # 30 días, se puede subir con el tiempo
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True

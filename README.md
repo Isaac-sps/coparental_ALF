@@ -181,6 +181,11 @@ python manage.py collectstatic   # necesario tras editar CSS/JS/imágenes,
                                   # staticfiles/, no desde static/ directamente
 ```
 
+## Despliegue en producción
+
+Ver [DEPLOY.md](DEPLOY.md) para la guía completa de despliegue en un VPS
+(gunicorn, systemd, nginx, HTTPS, checklist de `.env`).
+
 ## Notas importantes
 
 - El archivo `.env` contiene datos sensibles (incluida la contraseña de
