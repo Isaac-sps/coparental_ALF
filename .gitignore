@@ -12,6 +12,12 @@ env/
 
 # Environment files
 .env
+.env
+.env.*
+!.env.example
+*.bak*
+*.backup*
+*.save*
 
 # Archivos subidos por usuarios (comprobantes, fotos, documentos de Canal ALF).
 # Nunca deben versionarse: pueden contener información personal o financiera real.

@@ -18,9 +18,12 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.decorators.csrf import ensure_csrf_cookie
+from allauth.account.views import LoginView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path( "accounts/login/", ensure_csrf_cookie(LoginView.as_view()), name="account_login",),
     path("accounts/", include("allauth.urls")),  # login/registro allauth
     path("", include("core.urls")),
     path("calendario/", include("calendario.urls")),

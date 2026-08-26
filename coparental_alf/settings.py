@@ -35,7 +35,7 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-v#kkd$a6!ce5t9bvkr5u*2f9
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['app.leonelwebstudio.com', 'leonelwebstudio.com','www.leonelwebstudio.com','127.0.0.1', 'localhost'])
 
 
 # Application definition
@@ -261,20 +261,48 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # (invitaciones, etc). En producción se define en el .env del servidor.
 SITE_URL = env("SITE_URL", default="http://localhost:8000")
 
-
+	
 # ---------------------------------------------------------
 # SEGURIDAD EN PRODUCCIÓN (solo se activa cuando DEBUG=False)
 # ---------------------------------------------------------
 if not DEBUG:
     # Dominios desde los que se aceptan peticiones POST (nginx detrás de HTTPS).
     # Ej. en el .env del VPS: CSRF_TRUSTED_ORIGINS=https://tudominio.com
-    CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+    CSRF_TRUSTED_ORIGINS = env.list(
+      "CSRF_TRUSTED_ORIGINS", 
+      default=[
+        "https://app.leonelwebstudio.com",
+        "https://leonelwebstudio.com",
+        "https://www.leonelwebstudio.com",
+      ],
+    )
+
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_NAME = "coparental_alf_csrf"
 
     SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
     SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    ALLAUTH_TRUSTED_PROXY_COUNT = 1
 
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30  # 30 días, se puede subir con el tiempo
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "django.security.csrf": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
