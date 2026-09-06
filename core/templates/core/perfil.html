@@ -34,6 +34,19 @@
         <div class="col-md-6">{{ form.domicilio|as_crispy_field }}</div>
       </div>
 
+      {# NOTIF: bloque nuevo — toggle de Padre.notificaciones_email (core/models.py) #}
+      <h6 class="text-uppercase text-muted small fw-bold mb-3">Notificaciones</h6>
+      <div class="row g-3 mb-4">
+        <div class="col-12">
+          {{ form.notificaciones_email|as_crispy_field }}
+          <div class="form-text">
+            Recibirás un correo cuando tu coparental cree un evento en el
+            calendario, registre un gasto compartido o suba un comprobante de
+            pago. Desactiva esta opción si no quieres recibir estos avisos.
+          </div>
+        </div>
+      </div>
+
       <button class="btn btn-primary btn-lg" type="submit">Guardar cambios</button>
     </form>
   </div>

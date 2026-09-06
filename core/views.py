@@ -2,6 +2,7 @@
 
 from datetime import date
 from django.utils import timezone
+from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, FileResponse
 from django.shortcuts import render, redirect
@@ -318,6 +319,22 @@ def aceptar_invitacion_externo(request, token):
         login_url = reverse("account_login")
         return redirect(f"{login_url}?next={request.path}&email={invitacion.email}")
 
+    # BUGFIX: un padre/madre con sesión abierta en este navegador no debe poder
+    # "aceptar" la invitación de un profesional con su propia cuenta — son
+    # identidades distintas (ver comentario de solo_padres en decorators.py).
+    # Lo desloggeamos y lo mandamos a iniciar sesión/crear cuenta con el email
+    # real del profesional invitado, igual que al usuario no autenticado.
+    if Padre.objects.filter(user=request.user).exists():
+        logout(request)
+        messages.info(
+            request,
+            "Esta invitación es para un profesional externo, no para tu cuenta "
+            "de padre/madre. Inicia sesión (o crea una cuenta nueva) con el "
+            "correo al que fue enviada la invitación para poder aceptarla.",
+        )
+        login_url = reverse("account_login")
+        return redirect(f"{login_url}?next={request.path}&email={invitacion.email}")
+
     # Un usuario solo puede tener un rol externo activo a la vez (OneToOne).
     externo, _ = MiembroExterno.objects.update_or_create(
         user=request.user,
@@ -332,6 +349,11 @@ def aceptar_invitacion_externo(request, token):
 
     invitacion.aceptada = True
     invitacion.save()
+
+    if request.user.email and request.user.email.lower() != invitacion.email.lower():
+        messages.info(
+            request, f"Nota: esta invitación fue enviada originalmente a {invitacion.email}."
+        )
 
     registrar_actividad(
         request.user,

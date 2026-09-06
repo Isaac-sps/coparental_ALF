@@ -49,6 +49,11 @@ class Padre(models.Model):
     foto = models.ImageField(
         "Foto de perfil", upload_to="perfiles/", null=True, blank=True
     )
+    # NOTIF: preferencia individual para activar/desactivar los correos de
+    # notificar_grupo() (shared/services.py) desde el perfil del usuario.
+    notificaciones_email = models.BooleanField(
+        "Recibir notificaciones por email", default=True
+    )
 
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username}"
@@ -190,26 +195,20 @@ class RegistroActividad(models.Model):
         return f"{self.accion} - {self.usuario}"
 
 
+# NOTIF: antes esta función enviaba un email al grupo por CUALQUIER acción
+# (incluidas vistas de solo lectura, ej. "ver_resumen_financiero"), lo que
+# generaba correo cada vez que alguien solo navegaba. Ese envío se quitó de
+# acá: ahora solo audita, y el email se dispara explícitamente desde cada
+# vista de interés vía shared.services.notificar_grupo().
 def registrar_actividad(usuario, accion, descripcion=""):
     """
-    Registra una actividad en el historial y envía notificación al grupo.
-    Esta función se usa desde las vistas.
+    Registra una actividad en el historial de auditoría.
+    Esta función se usa desde las vistas. No envía notificaciones por email:
+    para eso, las vistas que representan una acción de interés llaman
+    explícitamente a shared.services.notificar_grupo().
     """
-
-    # Crear registro en la base de datos
-    registro = RegistroActividad.objects.create(
+    return RegistroActividad.objects.create(
         usuario=usuario,
         accion=accion,
         descripcion=descripcion,
     )
-
-    # Enviar notificación al grupo (si el usuario tiene perfil de padre y pertenece a uno)
-    padre = Padre.objects.filter(user=usuario).first()
-
-    if padre and padre.grupo:
-        from core.tasks import enviar_notificacion_grupo
-
-        mensaje = f"{usuario.username} realizó la acción: {accion}\n\n{descripcion}"
-        enviar_notificacion_grupo.delay(padre.grupo.id, mensaje)
-
-    return registro

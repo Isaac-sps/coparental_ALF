@@ -20,7 +20,9 @@ class PadreForm(forms.ModelForm):
     """Formulario para editar el perfil del padre."""
     class Meta:
         model = Padre
-        fields = ["foto", "fecha_nacimiento", "telefono", "domicilio"]
+        # NOTIF: "notificaciones_email" agregado para exponer el toggle de
+        # notificaciones en el formulario de perfil (ver perfil.html).
+        fields = ["foto", "fecha_nacimiento", "telefono", "domicilio", "notificaciones_email"]
         widgets = {
             "fecha_nacimiento": forms.DateInput(
                 format="%Y-%m-%d", attrs={"type": "date"}
