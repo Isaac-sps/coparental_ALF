@@ -17,8 +17,9 @@ from django.contrib import messages
 from .models import Pago, Gasto
 from .forms import PagoForm, GastoForm
 
-# Servicio de notificaciones automáticas
-from shared.services import enviar_notificacion_email
+# NOTIF: antes se importaba enviar_notificacion_email (notificaba solo al
+# propio usuario); ahora se usa notificar_grupo, que avisa al otro coparental.
+from shared.services import notificar_grupo
 
 # ✔ CORRECTO: esta es la función real que sí debes usar
 from core.models import registrar_actividad
@@ -229,11 +230,15 @@ def nuevo_pago(request):
                 request.user, "crear_pago", f"Pago de {pago.monto} creado."
             )
 
-            enviar_notificacion_email(
-                destinatario=request.user.email,
-                asunto="Nuevo pago registrado",
-                mensaje=f"Has registrado un pago de {pago.monto}€ con fecha {pago.fecha}.",
-            )
+            # NOTIF: solo notifica si se subió comprobante (antes se
+            # notificaba siempre, y encima solo al propio usuario que lo creó).
+            if pago.comprobante_pdf:
+                notificar_grupo(
+                    request.user,
+                    "Comprobante de pago subido",
+                    f"{request.user.get_full_name() or request.user.username} "
+                    f"subió un comprobante de pago de {pago.monto}€ con fecha {pago.fecha}.",
+                )
             return redirect(reverse("finanzas:resumen"))
     else:
         form = PagoForm()
@@ -250,12 +255,10 @@ def marcar_pagado(request, pk):
     registrar_actividad(
         request.user, "marcar_pago_pagado", f"Pago ID {pago.id} marcado como pagado."
     )
-
-    enviar_notificacion_email(
-        destinatario=request.user.email,
-        asunto="Pago marcado como pagado",
-        mensaje=f"El pago del {pago.fecha} ha sido marcado como pagado.",
-    )
+    # NOTIF: antes se enviaba un email aquí (a sí mismo). Se quitó porque
+    # esta acción no sube comprobante nuevo, no es una de las 4 acciones de
+    # interés (crear evento, crear gasto, comprobante de pago, comprobante
+    # de deuda) — sigue quedando en el historial de auditoría, sin correo.
 
     return redirect(reverse("finanzas:resumen"))
 
@@ -276,10 +279,13 @@ def nuevo_gasto(request):
                 request.user, "crear_gasto", f"Gasto de {gasto.monto} creado."
             )
 
-            enviar_notificacion_email(
-                destinatario=request.user.email,
-                asunto="Nuevo gasto registrado",
-                mensaje=f"Has registrado un gasto de {gasto.concepto} por {gasto.monto}€.",
+            # NOTIF: reemplaza el email que antes solo se mandaba al propio
+            # usuario que creó el gasto; ahora avisa al otro coparental.
+            notificar_grupo(
+                request.user,
+                "Nuevo gasto compartido",
+                f"{request.user.get_full_name() or request.user.username} "
+                f"registró un gasto de {gasto.concepto} por {gasto.monto}€.",
             )
 
             return redirect(reverse("finanzas:resumen"))
@@ -325,6 +331,16 @@ def pagar_deuda(request, pk):
             request.user,
             "pagar_deuda",
             f"Deuda del gasto ID {gasto.id} saldada con {monto_pagado}€.",
+        )
+
+        # NOTIF: esta vista antes no enviaba ningún correo; se agregó porque
+        # es el comprobante de "la otra parte" del gasto (la deuda 50/50).
+        notificar_grupo(
+            request.user,
+            "Comprobante de deuda saldada",
+            f"{request.user.get_full_name() or request.user.username} "
+            f"subió el comprobante de la deuda saldada de {gasto.concepto} "
+            f"por {monto_pagado}€.",
         )
 
         return redirect("finanzas:resumen")

@@ -9,6 +9,7 @@ from .models import Evento
 from .forms import EventoForm
 from core.models import registrar_actividad
 from core.decorators import solo_padres
+from shared.services import notificar_grupo
 
 DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
@@ -118,6 +119,15 @@ def crear_evento(request):
             # ⭐ NUEVO: registrar actividad al crear evento
             registrar_actividad(
                 request.user, "Evento creado", f"Evento: {evento}"
+            )
+
+            # NOTIF: único punto de calendario que envía correo — solo al crear.
+            # Editar/eliminar evento siguen arriba sin tocarse (solo auditoría).
+            notificar_grupo(
+                request.user,
+                "Nuevo evento en el calendario",
+                f"{request.user.get_full_name() or request.user.username} "
+                f"agregó un nuevo evento: {evento}",
             )
 
             return redirect(reverse("calendario:lista"))

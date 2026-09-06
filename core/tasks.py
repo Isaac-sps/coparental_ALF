@@ -57,18 +57,27 @@ def enviar_invitacion_externo_email(email, token, rol_display):
     )
 
 
+# NOTIF: firma cambiada de (grupo_id, mensaje) a (grupo_id, asunto, mensaje,
+# excluir_user_id) para poder: 1) mandar un asunto propio por tipo de evento
+# (antes era fijo "Nueva actividad..."), 2) filtrar destinatarios por su
+# preferencia Padre.notificaciones_email, y 3) excluir a quien hizo la acción
+# (antes se notificaba también a sí mismo).
 @shared_task
-def enviar_notificacion_grupo(grupo_id, mensaje):
+def enviar_notificacion_grupo(grupo_id, asunto, mensaje, excluir_user_id=None):
     from core.models import GrupoCoparental
 
     grupo = GrupoCoparental.objects.get(id=grupo_id)
-    emails = [padre.user.email for padre in grupo.miembros.all() if padre.user.email]
+    miembros = grupo.miembros.filter(notificaciones_email=True)  # NOTIF: respeta el opt-out
+    if excluir_user_id:
+        miembros = miembros.exclude(user_id=excluir_user_id)  # NOTIF: no notificar al actor
+
+    emails = [padre.user.email for padre in miembros if padre.user.email]
 
     if not emails:
         return
 
     send_mail(
-        "Nueva actividad en el grupo coparental",
+        asunto,
         mensaje,
         settings.DEFAULT_FROM_EMAIL,
         emails,
