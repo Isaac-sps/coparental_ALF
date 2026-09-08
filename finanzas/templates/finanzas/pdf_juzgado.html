@@ -29,10 +29,8 @@ td { border: 1px solid #ccc; padding: 6px; }
 <div class="section">
 <h2>Balance general</h2>
 
-{% if balance > 0 %}
-<p>La madre debe al padre: <strong>{{ balance }}€</strong></p>
-{% elif balance < 0 %}
-<p>El padre debe a la madre: <strong>{{ balance|floatformat:2|slice:"1:" }}€</strong></p>
+{% if deudor_nombre %}
+<p>{{ deudor_nombre }} debe a {{ acreedor_nombre }}: <strong>{{ monto_deuda }}€</strong></p>
 {% else %}
 <p>Ambos están equilibrados (0€).</p>
 {% endif %}
@@ -60,12 +58,12 @@ td { border: 1px solid #ccc; padding: 6px; }
 <td>{{ gasto.concepto }}</td>
 <td>{{ gasto.monto }}€</td>
 <td>{{ gasto.fecha }}</td>
-<td>{{ gasto.pagado_por.first_name }}</td>
+<td>{{ gasto.pagado_por_nombre }}</td>
 <td>{{ gasto.deuda_50_50 }}€</td>
 <td>{{ gasto.estado }}</td>
 <td>
 {% if gasto.deuda_pagada_por %}
-{{ gasto.deuda_pagada_por.first_name }}
+{{ gasto.deuda_pagada_por_nombre }}
 {% else %}
 Pendiente
 {% endif %}
@@ -79,20 +77,8 @@ Pendiente
 <div class="section">
 <h2>Resumen de deudas saldadas</h2>
 
-{% with total_padre=0 total_madre=0 %}
-{% for gasto in gastos %}
-{% if gasto.estado == "finiquitado" %}
-{% if gasto.deuda_pagada_por == request.user %}
-{% with total_padre=total_padre|add:gasto.deuda_50_50 %}{% endwith %}
-{% else %}
-{% with total_madre=total_madre|add:gasto.deuda_50_50 %}{% endwith %}
-{% endif %}
-{% endif %}
-{% endfor %}
-
-<p>Total saldado por el padre: <strong>{{ total_padre }}€</strong></p>
-<p>Total saldado por la madre: <strong>{{ total_madre }}€</strong></p>
-{% endwith %}
+<p>Total saldado por {{ nombre_actual }}: <strong>{{ total_deuda_actual }}€</strong></p>
+<p>Total saldado por {{ nombre_otro }}: <strong>{{ total_deuda_otro }}€</strong></p>
 </div>
 
 <div class="section">

@@ -22,7 +22,7 @@ from .forms import PagoForm, GastoForm
 from shared.services import notificar_grupo
 
 # ✔ CORRECTO: esta es la función real que sí debes usar
-from core.models import registrar_actividad
+from core.models import registrar_actividad, Padre
 from core.decorators import solo_padres, SoloPadresMixin
 
 
@@ -30,6 +30,23 @@ def _construir_contexto_resumen(request):
     """Arma el contexto de pagos/gastos/gráficos que comparten el resumen y el PDF."""
     pagos = Pago.objects.filter(grupo=request.grupo).order_by("-fecha")
     gastos = Gasto.objects.filter(grupo=request.grupo).order_by("-fecha")
+
+    # ---------------------------
+    # IDENTIDAD REAL DE LOS DOS PROGENITORES DEL GRUPO
+    # ---------------------------
+    # No existe un campo "rol" (padre/madre) en el modelo: antes se
+    # etiquetaba "Padre" a quien coincidiera con request.user y "Madre" al
+    # otro, así que la misma fila cambiaba de etiqueta según quién la
+    # mirara. Ahora se usan los nombres reales de los dos usuarios.
+    otro_perfil = (
+        Padre.objects.filter(grupo=request.grupo)
+        .exclude(user=request.user)
+        .select_related("user")
+        .first()
+    )
+    otro_usuario = otro_perfil.user if otro_perfil else None
+    nombre_actual = Gasto.nombre_usuario(request.user)
+    nombre_otro = Gasto.nombre_usuario(otro_usuario)
 
     # ---------------------------
     # FILTROS
@@ -52,10 +69,10 @@ def _construir_contexto_resumen(request):
     if desde and hasta:
         gastos = gastos.filter(fecha__range=[desde, hasta])
 
-    # FILTRO POR QUIÉN PAGÓ
-    if pagado_por == "padre":
+    # FILTRO POR QUIÉN PAGÓ (relativo a quien mira la página: "yo" / "el otro progenitor")
+    if pagado_por == "yo":
         gastos = gastos.filter(pagado_por=request.user)
-    elif pagado_por == "madre":
+    elif pagado_por == "otro":
         gastos = gastos.exclude(pagado_por=request.user)
 
     # ---------------------------
@@ -73,6 +90,17 @@ def _construir_contexto_resumen(request):
         elif g.pagado_por is not None:
             balance -= g.deuda_50_50
 
+    # Versión absoluta del balance (quién debe a quién por nombre real), para
+    # textos que deben leerse igual sin importar quién generó la página/PDF
+    # (p. ej. el resumen para juzgado).
+    if balance > 0:
+        deudor_nombre, acreedor_nombre, monto_deuda = nombre_otro, nombre_actual, balance
+    elif balance < 0:
+        deudor_nombre, acreedor_nombre, monto_deuda = nombre_actual, nombre_otro, -balance
+    else:
+        deudor_nombre = acreedor_nombre = None
+        monto_deuda = 0
+
     # ---------------------------
     # DATOS PARA EL GRÁFICO (orden cronológico ascendente)
     # ---------------------------
@@ -82,19 +110,19 @@ def _construir_contexto_resumen(request):
         "data": [float(g.monto) for g in gastos_con_fecha],
     }
 
-    # GRÁFICO COMPARATIVO PADRE VS MADRE
-    total_padre = (
+    # GRÁFICO COMPARATIVO ENTRE LOS DOS PROGENITORES (por nombre real)
+    total_actual = (
         gastos.filter(pagado_por=request.user).aggregate(total=Sum("monto"))["total"]
         or 0
     )
-    total_madre = (
+    total_otro = (
         gastos.exclude(pagado_por=request.user).aggregate(total=Sum("monto"))["total"]
         or 0
     )
 
     grafico_comparativo = {
-        "labels": ["Padre", "Madre"],
-        "data": [float(total_padre), float(total_madre)],
+        "labels": [nombre_actual, nombre_otro],
+        "data": [float(total_actual), float(total_otro)],
     }
 
     # GRÁFICO MENSUAL
@@ -129,10 +157,35 @@ def _construir_contexto_resumen(request):
     totales_por_mes = gastos_por_mes
     totales_por_ano = gastos_por_ano
 
+    # ---------------------------
+    # TOTALES DE DEUDAS 50/50 YA SALDADAS, POR PERSONA REAL
+    # ---------------------------
+    # Antes se calculaba esto en la plantilla comparando
+    # gasto.deuda_pagada_por == request.user, así que el mismo gasto
+    # finiquitado terminaba sumando al "padre" o a la "madre" según quién
+    # generara el PDF. Ahora se calcula una sola vez aquí, por identidad
+    # real, y el resultado es el mismo sin importar quién lo mire.
+    total_deuda_actual = 0
+    total_deuda_otro = 0
+    for g in gastos:
+        if g.estado != "finiquitado":
+            continue
+        if g.deuda_pagada_por == request.user:
+            total_deuda_actual += g.deuda_50_50
+        elif g.deuda_pagada_por is not None:
+            total_deuda_otro += g.deuda_50_50
+
     return {
         "pagos": pagos,
         "gastos": gastos,
         "balance": balance,
+        "nombre_actual": nombre_actual,
+        "nombre_otro": nombre_otro,
+        "deudor_nombre": deudor_nombre,
+        "acreedor_nombre": acreedor_nombre,
+        "monto_deuda": monto_deuda,
+        "total_deuda_actual": total_deuda_actual,
+        "total_deuda_otro": total_deuda_otro,
         "hoy": date.today(),
         "grafico_gastos": grafico_gastos,
         "grafico_comparativo": grafico_comparativo,

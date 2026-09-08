@@ -154,13 +154,7 @@
                     <td>{{ gasto.monto }}€</td>
                     <td>{{ gasto.fecha }}</td>
 
-                    <td>
-                        {% if gasto.pagado_por == request.user %}
-                            Padre
-                        {% else %}
-                            Madre
-                        {% endif %}
-                    </td>
+                    <td>{{ gasto.pagado_por_nombre }}</td>
 
                     <td>{{ gasto.deuda_50_50 }}€</td>
 
@@ -172,13 +166,7 @@
                         {% endif %}
                     </td>
 
-                    <td>
-                        {% if gasto.deuda_pagada_por %}
-                            {{ gasto.deuda_pagada_por.first_name }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
+                    <td>{{ gasto.deuda_pagada_por_nombre }}</td>
 
                     <td>
                         {% if gasto.comprobante_deuda %}
@@ -215,7 +203,7 @@
                     <tr>
                         <td>{{ gasto.concepto }}</td>
                         <td>{{ gasto.deuda_50_50 }}€</td>
-                        <td>{{ gasto.deuda_pagada_por.first_name }}</td>
+                        <td>{{ gasto.deuda_pagada_por_nombre }}</td>
                         <td>{{ gasto.fecha }}</td>
                     </tr>
                     {% endif %}
@@ -230,22 +218,8 @@
     <div class="section totales-box">
         <h2>Resumen final de deudas saldadas</h2>
 
-        {% with total_padre=0 total_madre=0 %}
-            {% for gasto in gastos %}
-                {% if gasto.estado == "finiquitado" %}
-                    {% if gasto.deuda_pagada_por == request.user %}
-                        {% with total_padre=total_padre|add:gasto.deuda_50_50 %}
-                        {% endwith %}
-                    {% else %}
-                        {% with total_madre=total_madre|add:gasto.deuda_50_50 %}
-                        {% endwith %}
-                    {% endif %}
-                {% endif %}
-            {% endfor %}
-
-            <p><strong>Total saldado por el padre:</strong> {{ total_padre }}€</p>
-            <p><strong>Total saldado por la madre:</strong> {{ total_madre }}€</p>
-        {% endwith %}
+        <p><strong>Total saldado por {{ nombre_actual }}:</strong> {{ total_deuda_actual }}€</p>
+        <p><strong>Total saldado por {{ nombre_otro }}:</strong> {{ total_deuda_otro }}€</p>
     </div>
 
 </body>
