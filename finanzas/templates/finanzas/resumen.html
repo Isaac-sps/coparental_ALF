@@ -28,8 +28,8 @@
       <label class="form-label">Pagado por</label>
       <select name="pagado_por" class="form-control">
         <option value="">Todos</option>
-        <option value="padre">Padre</option>
-        <option value="madre">Madre</option>
+        <option value="yo">{{ nombre_actual }} (yo)</option>
+        <option value="otro">{{ nombre_otro }}</option>
       </select>
     </div>
   </div>
@@ -122,7 +122,7 @@
   <div class="accordion-item">
     <h2 class="accordion-header">
       <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#colGraficoComparativo">
-        Comparación Padre vs Madre
+        Comparación entre progenitores
       </button>
     </h2>
     <div id="colGraficoComparativo" class="accordion-collapse collapse" data-bs-parent="#acordeonGraficos">
@@ -243,8 +243,8 @@
 <!-- BOTONES RÁPIDOS -->
 <div class="mb-3 d-flex gap-2">
   <a href="?mes={{ hoy.month }}&ano={{ hoy.year }}" class="btn btn-outline-primary btn-sm">Este mes</a>
-  <a href="?pagado_por=padre" class="btn btn-outline-success btn-sm">Padre</a>
-  <a href="?pagado_por=madre" class="btn btn-outline-warning btn-sm">Madre</a>
+  <a href="?pagado_por=yo" class="btn btn-outline-success btn-sm">{{ nombre_actual }} (yo)</a>
+  <a href="?pagado_por=otro" class="btn btn-outline-warning btn-sm">{{ nombre_otro }}</a>
   <a href="{% url 'finanzas:resumen' %}" class="btn btn-outline-dark btn-sm">Quitar filtros</a>
   <a href="{% url 'finanzas:elegir_pdf' %}" class="btn btn-outline-danger btn-sm">Exportar PDF</a>
 </div>
@@ -287,9 +287,9 @@
 
               <td>
                 {% if gasto.pagado_por == request.user %}
-                <span class="badge bg-primary">Padre</span>
+                <span class="badge bg-primary">{{ gasto.pagado_por_nombre }}</span>
                 {% else %}
-                <span class="badge bg-secondary">Madre</span>
+                <span class="badge bg-secondary">{{ gasto.pagado_por_nombre }}</span>
                 {% endif %}
               </td>
 

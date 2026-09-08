@@ -134,3 +134,19 @@ class Gasto(models.Model):
     def periodo_label(self):
         """Mes y año del gasto, para agrupar en la tabla (ej. 'Agosto 2026')."""
         return date_format(self.fecha, "F Y").capitalize() if self.fecha else "Sin fecha"
+
+    @staticmethod
+    def nombre_usuario(user):
+        if not user:
+            return "Sin especificar"
+        return user.get_full_name() or user.username
+
+    @property
+    def pagado_por_nombre(self):
+        """Nombre real de quien pagó el gasto (no relativo al usuario que mira la página)."""
+        return self.nombre_usuario(self.pagado_por)
+
+    @property
+    def deuda_pagada_por_nombre(self):
+        """Nombre real de quien saldó la deuda 50/50."""
+        return self.nombre_usuario(self.deuda_pagada_por)
