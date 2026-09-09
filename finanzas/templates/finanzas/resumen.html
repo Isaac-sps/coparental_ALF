@@ -46,59 +46,79 @@
 </div>
 
 <!-- BALANCE AUTOMÁTICO -->
+{# BUGFIX: usa nombre_otro (relativo a quien mira la página) en vez del "la madre" fijo que había antes. #}
 {% if balance > 0 %}
 <div class="alert alert-success">
-  La madre te debe <strong>{{ balance }}€</strong>.
+  {{ nombre_otro }} te debe <strong>{{ balance }}€</strong>.
 </div>
 {% elif balance < 0 %}
 <div class="alert alert-warning">
-  Tú debes <strong>{{ balance|floatformat:2|slice:"1:" }}€</strong> a la madre.
+  Tú debes <strong>{{ balance|floatformat:2|slice:"1:" }}€</strong> a {{ nombre_otro }}.
 </div>
 {% else %}
 <div class="alert alert-info">Ambos están equilibrados (0€).</div>
 {% endif %}
 
 <h3>Pagos de manutención</h3>
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Monto</th>
-      <th>Fecha</th>
-      <th>Estado</th>
-      <th>Comprobante</th>
-      <th>Acciones</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for pago in pagos %}
-    <tr>
-      <td>{{ pago.monto }}€</td>
-      <td>{{ pago.fecha }}</td>
-      <td>{{ pago.get_estado_display }}</td>
 
-      <td>
-        {% if pago.comprobante_pdf %}
-        <a href="{{ pago.comprobante_pdf.url }}" target="_blank">Ver PDF</a>
-        {% else %}
-        Sin comprobante
-        {% endif %}
-      </td>
+{% regroup pagos by periodo_label as pagos_por_periodo %}
+<div class="accordion mb-4" id="acordeonPagos">
+  {% for periodo in pagos_por_periodo %}
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button"
+        data-bs-toggle="collapse" data-bs-target="#colPagos{{ forloop.counter }}">
+        {{ periodo.grouper }}
+        <span class="badge bg-secondary ms-2">{{ periodo.list|length }}</span>
+      </button>
+    </h2>
+    <div id="colPagos{{ forloop.counter }}"
+         class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+         data-bs-parent="#acordeonPagos">
+      <div class="accordion-body p-0">
+        <table class="table table-striped mb-0">
+          <thead>
+            <tr>
+              <th>Monto</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th>Comprobante</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pago in periodo.list %}
+            <tr>
+              <td>{{ pago.monto }}€</td>
+              <td>{{ pago.fecha }}</td>
+              <td>{{ pago.get_estado_display }}</td>
 
-      <td>
-        {% if pago.estado != "pagado" %}
-        <a href="{% url 'finanzas:marcar_pagado' pago.pk %}" class="btn btn-sm btn-success me-1">Marcar pagado</a>
-        {% endif %}
-        <a href="{% url 'finanzas:editar_pago' pago.pk %}" class="btn btn-sm btn-warning me-1">Editar</a>
-        <a href="{% url 'finanzas:eliminar_pago' pago.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
-      </td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="5">No hay pagos registrados.</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+              <td>
+                {% if pago.comprobante_pdf %}
+                <a href="{{ pago.comprobante_pdf.url }}" target="_blank">Ver PDF</a>
+                {% else %}
+                Sin comprobante
+                {% endif %}
+              </td>
+
+              <td>
+                {% if pago.estado != "pagado" %}
+                <a href="{% url 'finanzas:marcar_pagado' pago.pk %}" class="btn btn-sm btn-success me-1">Marcar pagado</a>
+                {% endif %}
+                <a href="{% url 'finanzas:editar_pago' pago.pk %}" class="btn btn-sm btn-warning me-1">Editar</a>
+                <a href="{% url 'finanzas:eliminar_pago' pago.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <p>No hay pagos registrados.</p>
+  {% endfor %}
+</div>
 
 <h3>Gastos compartidos</h3>
 

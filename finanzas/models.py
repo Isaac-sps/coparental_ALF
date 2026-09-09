@@ -51,6 +51,11 @@ class Pago(models.Model):
     def __str__(self):
         return f"Pago {self.monto}€ - {self.fecha} ({self.get_estado_display()})"
 
+    @property
+    def periodo_label(self):
+        """Mes y año del pago, para agrupar en la tabla (ej. 'Agosto 2026')."""
+        return date_format(self.fecha, "F Y").capitalize() if self.fecha else "Sin fecha"
+
 
 class Gasto(models.Model):
     """Gasto compartido 50/50 con comprobantes y finiquito."""
