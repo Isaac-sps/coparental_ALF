@@ -84,11 +84,11 @@
         <h3>Balance general</h3>
 
         {% if balance > 0 %}
-            <p><strong>La madre te debe:</strong> {{ balance }}€</p>
+            <p><strong>{{ nombre_otro }} te debe:</strong> {{ balance }}€</p>
 
         {% elif balance < 0 %}
             <!-- balance negativo → eliminar el signo con slice -->
-            <p><strong>Tú debes a la madre:</strong> {{ balance|floatformat:2|slice:"1:" }}€</p>
+            <p><strong>Tú debes a {{ nombre_otro }}:</strong> {{ balance|floatformat:2|slice:"1:" }}€</p>
 
         {% else %}
             <p><strong>Ambos están equilibrados (0€).</strong></p>
