@@ -47,6 +47,7 @@
 {% regroup eventos by mes_label as eventos_por_mes %}
 {% for mes in eventos_por_mes %}
 <h5 class="text-uppercase text-muted small fw-bold mt-4 mb-2">{{ mes.grouper }}</h5>
+<div class="table-responsive">
 <table class="table table-striped">
   <thead>
     <tr>
@@ -64,7 +65,7 @@
       <td>{{ evento.get_tipo_display }}</td>
       <td>{{ evento.fecha_inicio }}</td>
       <td>{{ evento.fecha_fin }}</td>
-      <td>{{ evento.get_punto_encuentro_display }}</td>
+      <td>{{ evento.punto_encuentro }}</td>
       <td>{{ evento.notas|default:"—" }}</td>
       <td>
         <a href="{% url 'calendario:editar' evento.pk %}" class="btn btn-sm btn-secondary">Editar</a>
@@ -74,6 +75,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% empty %}
 <p class="text-muted">No se encontraron eventos con esos filtros.</p>
 {% endfor %}

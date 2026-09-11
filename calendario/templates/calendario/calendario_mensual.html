@@ -34,7 +34,7 @@
           {% for evento in dia.eventos %}
           <a href="{% url 'calendario:editar' evento.pk %}"
              class="d-block small text-truncate rounded px-1 mb-1 text-white text-decoration-none {% if evento.tipo == 'visita' %}bg-success{% else %}bg-info{% endif %}"
-             title="{{ evento.get_tipo_display }}: {{ evento.get_punto_encuentro_display }}">
+             title="{{ evento.get_tipo_display }}: {{ evento.punto_encuentro }}">
             {{ evento.get_tipo_display }}
           </a>
           {% endfor %}
