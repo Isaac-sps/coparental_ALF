@@ -8,12 +8,14 @@ class Evento(models.Model):
     TIPO_CHOICES = [
         ("visita", "Visita"),
         ("vacacion", "Vacaciones"),
-    ]
-
-    PUNTO_ENCUENTRO_CHOICES = [
-        ("igualada", "Igualada"),
-        ("cervera_estacion", "Estación de Cervera"),
-        ("montblanc_ap2", "Montblanc AP-2"),
+        ("cumpleanos", "Cumpleaños"),
+        ("viaje", "Viajes"),
+        ("aniversario", "Aniversarios"),
+        ("boda", "Bodas"),
+        ("comida_familiar", "Comida Familiar"),
+        ("graduacion", "Graduación"),
+        ("bautizo_comunion", "Bautizo/Comunión"),
+        ("extranjeria", "Extranjería"),
     ]
 
     grupo = models.ForeignKey(
@@ -24,8 +26,8 @@ class Evento(models.Model):
     fecha_fin = models.DateField("Fecha de fin")
     punto_encuentro = models.CharField(
         "Punto de encuentro",
-        max_length=50,
-        choices=PUNTO_ENCUENTRO_CHOICES,
+        max_length=255,
+        help_text="Describe el sitio donde se va a gestionar/concertar la visita.",
     )
     notas = models.TextField("Notas", blank=True)
 

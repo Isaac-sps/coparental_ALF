@@ -28,7 +28,7 @@ def enviar_recordatorio_visita():
         asunto = "Recordatorio de visita"
         mensaje = (
             f"Hay una visita programada para el día {evento.fecha_inicio} "
-            f"en el punto de encuentro: {evento.get_punto_encuentro_display()}."
+            f"en el punto de encuentro: {evento.punto_encuentro}."
         )
         for padre in padres:
             if padre.email:
