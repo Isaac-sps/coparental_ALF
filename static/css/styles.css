@@ -1,5 +1,13 @@
 /* Estilos propios de CoparentaL ALF */
 
+/* Evita que una tabla ancha (ver .table-responsive en los templates) empuje
+   y arrastre toda la página hacia los costados en móvil; el scroll
+   horizontal debe quedar contenido dentro de esa tabla, no en toda la app. */
+html,
+body {
+  overflow-x: hidden;
+}
+
 /* ============================================================
    Color de marca (tono azul de la barra, botones, badges, etc.)
    Para cambiar el tono, edita SOLO estas dos variables.
